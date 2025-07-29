@@ -274,6 +274,8 @@ function App() {
     return <LoginForm onLogin={handleLogin} isLoading={isLoggingIn} error={loginError} />;
   }
 
+  // DEBUG: log setiap render dan perubahan step
+  console.log('[DEBUG][APP][RENDER] step:', step, '| transferData.receiverAccount:', transferData.receiverAccount);
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}

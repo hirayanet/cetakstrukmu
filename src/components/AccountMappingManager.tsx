@@ -46,9 +46,11 @@ const AccountMappingManager: React.FC = () => {
     const nameUpper = newName.toUpperCase().trim();
     const accountFormatted = newAccount.trim();
 
-    // Validasi format nomor rekening
-    if (!accountFormatted.match(/^\*{8,}\d{3,4}$/)) {
-      alert('Format nomor rekening harus: ***********xxxx (minimal 8 bintang + 3-4 digit)');
+    // Validasi format nomor rekening (boleh masking atau full digit)
+    const isMasked = /^\*{8,}\d{3,4}$/.test(accountFormatted);
+    const isFullDigit = /^\d{8,20}$/.test(accountFormatted.replace(/\s/g, ''));
+    if (!isMasked && !isFullDigit) {
+      alert('Format nomor rekening harus: ***********xxxx (atau 8-20 digit angka)');
       return;
     }
 

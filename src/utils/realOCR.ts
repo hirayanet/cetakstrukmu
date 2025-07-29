@@ -454,9 +454,18 @@ function parseSeabankReceipt(text: string, bankType: BankType, paperSize: '58mm'
   let adminFee = 0;
   let receiverBank = 'BRI'; // Default
   
-  // Deteksi apakah transfer ke DANA
-  const isDanaTransfer = text.includes('Dana:') || text.includes('DANA:');
+  // Deteksi apakah transfer ke DANA - pattern yang lebih luas
+  const isDanaTransfer = text.includes('Dana:') || text.includes('DANA:') || 
+                        text.includes('Dnid') || text.includes('DNID') ||
+                        text.toLowerCase().includes('dana') ||
+                        /\b(dnid|dana)\b/i.test(text);
   console.log('💙 Is DANA Transfer:', isDanaTransfer);
+  console.log('💙 DANA Detection - Raw text check:', {
+    hasDanaColon: text.includes('Dana:') || text.includes('DANA:'),
+    hasDnid: text.includes('Dnid') || text.includes('DNID'),
+    hasDanaLower: text.toLowerCase().includes('dana'),
+    regexMatch: /\b(dnid|dana)\b/i.test(text)
+  });
   
   // Helper function untuk membersihkan nama dan koreksi OCR
   const cleanName = (name: string): string => {
@@ -593,7 +602,7 @@ function parseSeabankReceipt(text: string, bankType: BankType, paperSize: '58mm'
     
     // Conditional logic untuk rekening tujuan
     if (isDanaTransfer) {
-      // Format DANA: Dana: 0812****337
+      // Format DANA: Dana: 0812****337 atau deteksi dari nama yang mengandung DNID
       if (upperLine.includes('DANA:')) {
         const accountMatch = line.match(/Dana:\s*(.+)/i);
         if (accountMatch) {
@@ -612,6 +621,11 @@ function parseSeabankReceipt(text: string, bankType: BankType, paperSize: '58mm'
           receiverBank = 'DANA';
           console.log('💙 DANA Account:', receiverAccount);
         }
+      } else if (receiverName.includes('DNID') || receiverName.toLowerCase().includes('dana')) {
+        // Fallback: Jika nama mengandung DNID, set sebagai DANA dengan placeholder
+        receiverBank = 'DANA';
+        receiverAccount = '0812*****337'; // Placeholder untuk DANA
+        console.log('💙 DANA Detected from name (DNID), using placeholder:', receiverAccount);
       }
     } else {
       // Format Bank: BANK BRI: ttiitiinkg 504 ATAU BRI: kkk 531
@@ -740,6 +754,13 @@ function parseSeabankReceipt(text: string, bankType: BankType, paperSize: '58mm'
     }
   }
   
+  // DANA Override: Jika terdeteksi DANA tapi belum ada receiverAccount
+  if (isDanaTransfer && !receiverAccount) {
+    receiverBank = 'DANA';
+    receiverAccount = '0812*****337'; // Placeholder masking DANA
+    console.log('💙 [DANA][OVERRIDE] DANA terdeteksi, menggunakan placeholder masking:', receiverAccount);
+  }
+  
   // Fallback: Jika nama penerima masih default, coba cari pattern nama di seluruh teks
   if (!receiverName || receiverName === 'NAMA PENERIMA') {
     console.log('🔍 Seabank: Searching for receiver name fallback...');
@@ -788,7 +809,8 @@ function parseSeabankReceipt(text: string, bankType: BankType, paperSize: '58mm'
 
   // SUPER FALLBACK: Jika receiverBank sudah diset ke BRI tapi account kosong
   // Ini terjadi karena OCR tidak bisa baca bagian nomor rekening
-  if (!receiverAccount && receiverBank === 'BRI') {
+  // SKIP jika ini adalah transfer DANA
+  if (!receiverAccount && receiverBank === 'BRI' && !isDanaTransfer) {
     console.log('🚨 SUPER FALLBACK: BRI bank detected but no account number found');
     console.log('🔍 Receiver name for mapping:', receiverName);
 
@@ -1437,7 +1459,162 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
         break;
       case 'SEABANK':
         console.log('🌊 Parsing as Seabank receipt...');
+        // PATCH: Cropping area masking DANA
+        let maskingDana = '';
+        
+        try {
+          // Import cropImageArea function
+          const { cropImageAreaToBlob } = await import('./cropImageArea');
+          
+          // Crop area khusus untuk masking DANA (y: 0.35, height: 0.18)
+          const cropVariants = [
+            { x: 0, y: 0.32, width: 1, height: 0.25 }, // area lebih besar, pastikan baris 'Dana:' masuk
+            { x: 0, y: 0.28, width: 1, height: 0.30 }, // backup area lebih tinggi
+            { x: 0, y: 0.36, width: 1, height: 0.28 }  // backup lain
+          ];
+          let danaText = '';
+          let maskingDanaCropBase64 = '';
+          let allDanaTexts: string[] = [];
+for (const variant of cropVariants) {
+  // Crop area ke Blob dengan resize dan adaptive threshold
+  let croppedBlob = await cropImageAreaToBlob(processedImageUrl, variant, { scale: 2, adaptiveThreshold: true });
+  const objectUrl = URL.createObjectURL(croppedBlob);
+  console.log('[DANA][CROP][DEBUG] Blob crop:', variant, objectUrl);
+  try {
+    const workerDana = await createWorker('ind', {
+      tessedit_char_whitelist: '0123456789*',
+      preserve_interword_spaces: '1',
+      user_defined_dpi: '200',
+      tessedit_pageseg_mode: '7' // single line
+    });
+    const { data } = await workerDana.recognize(objectUrl);
+    const cropText = data.text.replace(/\s+/g, ' ').trim();
+    await workerDana.terminate();
+    console.log('🔍 [DANA][CROP] OCR masking area:', cropText);
+    allDanaTexts.push(cropText);
+    if (cropText.length > danaText.length) {
+      danaText = cropText;
+      maskingDanaCropBase64 = objectUrl;
+    }
+  } catch (err) {
+    console.warn('⚠️ [DANA][CROP] OCR masking area gagal:', err);
+  }
+}
+console.log('[DANA][CROP][ALL OCR RAW]:', allDanaTexts);
+// Gabungkan semua hasil crop
+const combinedText = allDanaTexts.join(' ');
+          if (maskingDanaCropBase64) {
+  console.log('[DANA][CROP][BEST] Crop terbaik (object URL):', maskingDanaCropBase64);
+}
+          // Terima masking DANA (0812*****337) atau nomor HP polos (0812144337)
+          // Regex lebih fleksibel: masking, angka polos, spasi, atau bintang terbaca angka
+const maskingRegex = /(08\d{7,12}|08\d{2,4}[\*8\s]{2,6}\d{2,4}|\d{2,4}[\*8\s]+\d{2,4})/;
+const match = combinedText.match(maskingRegex);
+if (maskingDana) {
+  maskingDana = match[0].replace(/8/g, '*').replace(/\s/g, '*'); // Normalisasi jika bintang terbaca 8/spasi
+  console.log('🎯 [DANA][CROP] Masking/nomor HP DANA terdeteksi:', maskingDana);
+} else {
+  // Cek fallback: ada nomor HP tanpa masking?
+  const fallbackHp = combinedText.match(/08\d{7,12}/);
+  if (fallbackHp) {
+    maskingDana = fallbackHp[0];
+    console.log('🎯 [DANA][CROP][FALLBACK] Nomor HP DANA tanpa masking terdeteksi:', maskingDana);
+  }
+}
+// PATCH: Masking DANA dinamis - 4 digit depan, 5 bintang, 3 digit akhir
+if (maskingDana && extractedData.receiverBank === 'DANA') {
+  // Ambil digit saja
+  const onlyDigits = maskingDana.replace(/[^0-9]/g, '');
+  if (onlyDigits.length >= 7) {
+    const first4 = onlyDigits.slice(0, 4);
+    const last3 = onlyDigits.slice(-3);
+    const autoMasked = `${first4}*****${last3}`;
+    console.log('✨ [DANA][CROP][MASKING][DINAMIS] Masking otomatis diterapkan:', autoMasked);
+    maskingDana = autoMasked;
+  }
+  // Jika kurang dari 7 digit, tetap gunakan hasil maskingDana apa adanya
+}
+// Normalisasi karakter masking
+maskingDana = maskingDana.replace(/x/gi, '*').replace(/\s/g, '*');
+// Set hasil akhir
+extractedData.receiverAccount = maskingDana;
+
+// PATCH: Masking otomatis rekening tujuan bank lain (selain DANA)
+if (
+  extractedData.receiverBank &&
+  extractedData.receiverBank !== 'DANA'
+) {
+  let maskedRek = undefined;
+  // 1. Jika sudah ada rekening, masking seperti biasa
+  if (
+    extractedData.receiverAccount &&
+    extractedData.receiverAccount.replace(/[^0-9]/g, '').length >= 4
+  ) {
+    const onlyDigits = extractedData.receiverAccount.replace(/[^0-9]/g, '');
+    const last4 = onlyDigits.slice(-4);
+    maskedRek = '***********' + last4;
+    console.log('✨ [SEABANK→BANK LAIN][MASKING] Masking otomatis diterapkan:', maskedRek);
+    extractedData.receiverAccount = maskedRek;
+  } else {
+    // 2. Fallback: cari di semua baris OCR area label BANK BRI
+    const bankBriLine = allOcrLines.find(line => /BANK BRI[:：]/i.test(line));
+    if (bankBriLine) {
+      const match = bankBriLine.match(/(\d{4})\s*$/);
+      if (match) {
+        const last4 = match[1];
+        maskedRek = '***********' + last4;
+        console.log('✨ [FALLBACK][BANK BRI] Masking otomatis dari label BANK BRI:', maskedRek);
+        extractedData.receiverAccount = maskedRek;
+      }
+    }
+  }
+}
+
+          // --- CLEANUP: Patch cropping/threshold masking BANK BRI dinonaktifkan untuk efisiensi ---
+          // Untuk struk SeaBank ke bank lain (selain DANA), masking otomatis hanya ***********, user input manual 4 digit akhir rekening.
+        } catch (err) {
+          console.warn('⚠️ [DANA][CROP] Crop/OCR area masking gagal:', err);
+          // Fallback: Coba parsing masking DANA langsung dari RAW OCR TEXT jika cropping gagal
+          const fallbackRegex = /(08\d{7,12}|08\d{2,4}\*{2,6}\d{2,4}|\d{2,4}\*+\d{2,4})/;
+          const fallbackMatch = text.match(fallbackRegex);
+          if (fallbackMatch) {
+            maskingDana = fallbackMatch[0];
+            console.log('🎯 [DANA][RAW OCR] Masking/nomor HP DANA terdeteksi dari RAW OCR:', maskingDana);
+          } else {
+            // Cek fallback: ada nomor HP tanpa masking?
+            const fallbackHp = text.match(/08\d{7,12}/);
+            if (fallbackHp) {
+              maskingDana = fallbackHp[0];
+              console.log('🎯 [DANA][RAW OCR][FALLBACK] Nomor HP DANA tanpa masking terdeteksi:', maskingDana);
+            }
+          }
+        }
+
         extractedData = parseSeabankReceipt(text, bankType, paperSize);
+        
+        // Override hasil parsing jika masking DANA terdeteksi dari cropping/RAW OCR
+        if (maskingDana) {
+          // Format masking DANA: 0812*****337 (4 digit depan + 5 bintang + 3 digit akhir)
+          let maskedDana = maskingDana;
+          // Jika hanya angka awal dan akhir, tetap masking
+          const hpMatch = maskingDana.match(/^(08\d{2})(\d+)(\d{3})$/);
+          if (hpMatch && maskingDana.length >= 10) {
+            maskedDana = `${hpMatch[1]}*****${hpMatch[3]}`;
+            console.log('✨ [DANA][CROP][MASKING] Masking otomatis diterapkan:', maskedDana);
+          } else if (/^08\d{7,12}$/.test(maskingDana)) {
+            // Jika hanya angka polos, masking tetap diformat
+            maskedDana = maskingDana.slice(0,4) + '*****' + maskingDana.slice(-3);
+            console.log('✨ [DANA][CROP][MASKING][POLA ANGKA] Masking otomatis dari angka polos:', maskedDana);
+          }
+          extractedData.receiverAccount = maskedDana;
+          extractedData.receiverBank = 'DANA';
+          console.log('✅ [DANA][CROP][PRIORITAS] Masking DANA dipakai sebagai hasil utama:', maskedDana);
+        } else if (extractedData.receiverBank === 'DANA' || text.toLowerCase().includes('dnid')) {
+          // Fallback: Jika parsing regular mendeteksi DANA tapi cropping/RAW OCR gagal
+          console.log('🔍 [DANA][FALLBACK] DANA terdeteksi dari parsing regular, tapi nomor HP tidak terbaca di gambar/RAW OCR. Field dikosongkan demi keamanan/data asli.');
+          extractedData.receiverAccount = '';
+          extractedData.receiverBank = 'DANA';
+        }
         break;
       case 'DANA':
         console.log('💙 Parsing as DANA receipt...');

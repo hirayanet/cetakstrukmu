@@ -15,6 +15,7 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
     // Set default nama pengirim untuk BCA
     senderName: initialData.bankType === 'BCA' ? 'GANI MUHAMMAD RMADLAN' : initialData.senderName
   });
+  const [mappingNotice, setMappingNotice] = useState('');
   const [detectionInfo, setDetectionInfo] = useState<string>('');
 
   const adminFeeOptions = [
@@ -37,17 +38,40 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
 
   const totalAmount = formData.amount + formData.adminFee;
 
+  // Debug log setiap kali render
+  console.log('[DEBUG][RENDER] initialData.receiverAccount:', initialData.receiverAccount);
+  console.log('[DEBUG][RENDER] formData.receiverAccount:', formData.receiverAccount);
+  // Debug log setiap perubahan initialData.receiverAccount dan formData.receiverAccount
   useEffect(() => {
-    if (initialData.receiverAccount) {
-      setFormData(prev => ({
-        ...prev,
-        receiverAccount: initialData.receiverAccount
-      }));
-    }
+    console.log('[DEBUG][EFFECT] initialData.receiverAccount:', initialData.receiverAccount);
   }, [initialData.receiverAccount]);
+  useEffect(() => {
+    console.log('[DEBUG][EFFECT] formData.receiverAccount:', formData.receiverAccount);
+  }, [formData.receiverAccount]);
+  // Selalu update receiverAccount jika initialData.receiverAccount berubah
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      receiverAccount: initialData.receiverAccount || ''
+    }));
+  }, [initialData.receiverAccount]);
+
+  useEffect(() => {
+    setFormData({ ...initialData,
+      receiverAccount: initialData.receiverAccount || '',
+      senderName: initialData.bankType === 'BCA' ? 'GANI MUHAMMAD RMADLAN' : initialData.senderName
+    });
+    setMappingNotice('');
+  }, [initialData]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Mapping notice */}
+      {mappingNotice && (
+        <div className="mb-2 text-green-600 text-sm font-medium">
+          {mappingNotice}
+        </div>
+      )}
       {/* Form */}
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -107,7 +131,21 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
             <input
               type="text"
               value={formData.receiverName}
-              onChange={(e) => setFormData({ ...formData, receiverName: e.target.value.toUpperCase() })}
+              onChange={async (e) => {
+                const newName = e.target.value.toUpperCase();
+                let newAccount = formData.receiverAccount;
+                let notice = '';
+                // Cek mapping manual
+                try {
+                  const mappings = JSON.parse(localStorage.getItem('accountMappings') || '{}');
+                  if (newName && mappings[newName]) {
+                    newAccount = mappings[newName];
+                    notice = `Nomor rekening otomatis diisi dari mapping: ${newAccount}`;
+                  }
+                } catch {}
+                setFormData({ ...formData, receiverName: newName, receiverAccount: newAccount });
+                setMappingNotice(notice);
+              }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="NAMA PENERIMA"
               required
