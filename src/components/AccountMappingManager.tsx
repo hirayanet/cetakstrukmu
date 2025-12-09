@@ -102,9 +102,11 @@ const AccountMappingManager: React.FC = () => {
     return (
       <button
         onClick={() => setIsVisible(true)}
-        className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-600 transition-colors"
+        className="fixed bottom-4 right-4 bg-blue-500 text-white p-3 md:px-4 md:py-2 rounded-full md:rounded-lg shadow-lg hover:bg-blue-600 transition-colors z-40 flex items-center"
+        title="Kelola Mapping"
       >
-        ⚙️ Kelola Mapping
+        <span className="text-xl md:text-base md:mr-2">⚙️</span>
+        <span className="hidden md:inline">Kelola Mapping</span>
       </button>
     );
   }
