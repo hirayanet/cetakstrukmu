@@ -62,8 +62,8 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
 
   // Mapping contoh struk (placeholder path)
   const getExampleImage = (bank: BankType) => {
-    // Nanti user tinggal replace file di folder ini
-    return `/src/assets/examples/${bank.toLowerCase()}_example.jpg`;
+    // File ada di folder public/examples
+    return `/examples/${bank.toLowerCase()}_example.jpg`;
   };
 
   if (isProcessing) {
