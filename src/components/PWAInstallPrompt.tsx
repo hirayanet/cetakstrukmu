@@ -34,7 +34,7 @@ const PWAInstallPrompt: React.FC = () => {
         const lastDismissed = localStorage.getItem('pwa-prompt-dismissed');
         const now = Date.now();
         const oneDayAgo = now - (24 * 60 * 60 * 1000); // 24 hours
-        
+
         if (!lastDismissed || parseInt(lastDismissed) < oneDayAgo) {
           setShowPrompt(true);
         }
@@ -46,7 +46,7 @@ const PWAInstallPrompt: React.FC = () => {
 
   const handleInstall = async () => {
     setIsInstalling(true);
-    
+
     try {
       const success = await installPWA();
       if (success) {
@@ -94,7 +94,7 @@ const PWAInstallPrompt: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Install Aplikasi</h3>
-                <p className="text-sm text-gray-600">Cetak Struk Transfer</p>
+                <p className="text-sm text-gray-600">Upload • Klik • Selesai</p>
               </div>
             </div>
             <button
@@ -125,14 +125,14 @@ const PWAInstallPrompt: React.FC = () => {
                   </div>
                   <span className="text-sm text-gray-700">Akses langsung dari home screen</span>
                 </div>
-                
+
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-blue-600 text-sm">📱</span>
                   </div>
                   <span className="text-sm text-gray-700">Tampilan seperti aplikasi native</span>
                 </div>
-                
+
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                     {isOnline ? (
@@ -145,7 +145,7 @@ const PWAInstallPrompt: React.FC = () => {
                     Bekerja offline (fitur terbatas)
                   </span>
                 </div>
-                
+
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
                     <span className="text-orange-600 text-sm">🔄</span>

@@ -99,3 +99,40 @@ export const clearAppState = (): void => {
     console.error('Error clearing app state:', error);
   }
 };
+
+export interface UserSettings {
+  shopName: string;
+  shopSubtitle: string;
+  shopFooter: string;
+}
+
+const USER_SETTINGS_KEY = 'cetakresi_user_settings';
+
+export const saveUserSettings = (username: string, settings: UserSettings): void => {
+  try {
+    const allSettings = loadAllUserSettings();
+    allSettings[username] = settings;
+    localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify(allSettings));
+  } catch (error) {
+    console.error('Error saving user settings:', error);
+  }
+};
+
+export const loadUserSettings = (username: string): UserSettings | null => {
+  try {
+    const allSettings = loadAllUserSettings();
+    return allSettings[username] || null;
+  } catch (error) {
+    console.error('Error loading user settings:', error);
+    return null;
+  }
+};
+
+const loadAllUserSettings = (): Record<string, UserSettings> => {
+  try {
+    const saved = localStorage.getItem(USER_SETTINGS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch (error) {
+    return {};
+  }
+};

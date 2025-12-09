@@ -3,12 +3,14 @@ import { Printer, Download, CheckCircle, Share2 } from 'lucide-react';
 import { TransferData } from '../types/TransferData';
 import { uploadReceiptToCloudinary, generateFileName } from '../utils/cloudinaryUpload';
 import { autoSaveAccountMapping } from '../utils/realOCR';
+import { UserSettings } from '../utils/auth';
 
 interface ReceiptPreviewProps {
   transferData: TransferData;
+  shopSettings: UserSettings;
 }
 
-export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
+export default function ReceiptPreview({ transferData, shopSettings }: ReceiptPreviewProps) {
   const [autoSaveMessage, setAutoSaveMessage] = useState<string>('');
 
   const formatNumber = (num: number) => {
@@ -114,7 +116,7 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
 
       const html2canvas = (await import('html2canvas')).default;
       const jsPDF = (await import('jspdf')).default;
-      
+
       const receiptElement = document.querySelector('.receipt-content') as HTMLElement;
       if (!receiptElement) {
         throw new Error('Receipt content not found');
@@ -131,11 +133,11 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
       });
 
       const imgData = canvas.toDataURL('image/png', 1.0);
-      
+
       // PDF size yang lebih akurat untuk thermal printer
       const pdfWidth = transferData.paperSize === '58mm' ? 58 : 80;
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -144,11 +146,11 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
 
       // Add image dengan margin kecil
       pdf.addImage(imgData, 'PNG', 1, 1, pdfWidth - 2, pdfHeight - 2);
-      
+
       // Filename dengan timestamp
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       pdf.save(`struk-${transferData.bankType}-${timestamp}.pdf`);
-      
+
       console.log('✅ PDF saved successfully');
       alert('✅ PDF berhasil disimpan!');
     } catch (error) {
@@ -174,7 +176,7 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
       console.log('🚀 Starting WhatsApp share process...');
 
       const html2canvas = (await import('html2canvas')).default;
-      
+
       const receiptElement = document.querySelector('.receipt-content') as HTMLElement;
       if (!receiptElement) {
         throw new Error('Receipt content not found');
@@ -207,9 +209,9 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
           // Upload to Cloudinary
           const fileName = generateFileName(transferData.bankType);
           const imageUrl = await uploadReceiptToCloudinary(blob, fileName);
-          
+
           // Create WhatsApp message with compatible emojis
-          const message = `📄 *BUKTI TRANSFER - JASA HRY*\n\n` +
+          const message = `📄 *BUKTI TRANSFER - ${shopSettings.shopName}*\n\n` +
             `✅ Transfer berhasil!\n` +
             `💰 Jumlah: Rp ${formatNumber(transferData.amount)}\n` +
             `👤 Dari: ${transferData.senderName}\n` +
@@ -217,13 +219,13 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
             `🏦 Bank: ${transferData.receiverBank}\n` +
             `📅 Tanggal: ${transferData.date}\n\n` +
             `📎 Lihat struk lengkap: ${imageUrl}\n\n` +
-            `Terima kasih telah menggunakan JASA HRY! 🙏`;
-          
+            `${shopSettings.shopFooter}`;
+
           // Try Web Share API first (gives user choice of apps including WA Personal/Business)
           if (navigator.share && navigator.canShare && navigator.canShare({ text: message })) {
             try {
               await navigator.share({
-                title: 'Bukti Transfer - Jasa HRY',
+                title: `Bukti Transfer - ${shopSettings.shopName}`,
                 text: message
               });
               console.log('✅ Shared via Web Share API');
@@ -240,10 +242,10 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
           // Fallback: Open WhatsApp directly (for older browsers)
           const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
           window.open(whatsappUrl, '_blank');
-          
+
           console.log('✅ WhatsApp share completed!');
           alert('✅ Struk berhasil diupload! WhatsApp terbuka dengan link struk.');
-          
+
         } catch (uploadError) {
           console.error('❌ Upload failed:', uploadError);
           alert('❌ Gagal upload struk. Coba lagi atau gunakan Simpan PDF.');
@@ -255,7 +257,7 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
           }
         }
       }, 'image/png', 0.9);
-      
+
     } catch (error) {
       console.error('❌ WhatsApp Share Error:', error);
       alert('❌ Gagal share ke WhatsApp. Coba gunakan Simpan PDF.');
@@ -304,8 +306,8 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
         <div className="bg-white shadow-2xl rounded-lg overflow-hidden print:shadow-none print:rounded-none">
           <div className={`${receiptWidth} bg-white p-4 print:p-2 receipt-content`}>
             <div className="text-center border-b border-gray-300 pb-3 mb-3">
-              <h1 className="text-lg font-bold">JASA HRY</h1>
-              <p className="text-xs text-gray-600">Kirim Uang & Pembayaran</p>
+              <h1 className="text-lg font-bold">{shopSettings.shopName}</h1>
+              <p className="text-xs text-gray-600">{shopSettings.shopSubtitle}</p>
               <p className="text-xs text-gray-600">Cepat • Aman • Terpercaya</p>
             </div>
 
@@ -385,9 +387,7 @@ export default function ReceiptPreview({ transferData }: ReceiptPreviewProps) {
             <hr className="my-3 border-dashed" />
 
             <div className="text-center text-xs text-gray-600 space-y-1">
-              <p>Terima kasih telah menggunakan</p>
-              <p className="font-semibold">JASA HRY</p>
-              <p>Simpan bukti ini sebagai referensi</p>
+              <p>{shopSettings.shopFooter}</p>
               <div className="mt-2 pt-2 border-t border-gray-200">
                 <p className="text-xs text-gray-500">
                   Dicetak: {currentDateTime}

@@ -12,23 +12,23 @@ const AccountMappingManager: React.FC = () => {
 
   // Load existing mappings
   useEffect(() => {
-    // Load dari localStorage
-    const savedMappings = localStorage.getItem('accountMappings');
-    console.log('🔍 DEBUG: Raw localStorage data:', savedMappings);
+    if (isVisible) {
+      // Load dari localStorage saat modal dibuka
+      const savedMappings = localStorage.getItem('accountMappings');
+      console.log('🔍 DEBUG: Reloading mappings (isVisible=true):', savedMappings);
 
-    if (savedMappings) {
-      try {
-        const parsed = JSON.parse(savedMappings);
-        console.log('🔍 DEBUG: Parsed mappings:', parsed);
-        console.log('🔍 DEBUG: Total mappings found:', Object.keys(parsed).length);
-        setMappings(parsed);
-      } catch (error) {
-        console.error('❌ Failed to load mappings:', error);
+      if (savedMappings) {
+        try {
+          const parsed = JSON.parse(savedMappings);
+          setMappings(parsed);
+        } catch (error) {
+          console.error('❌ Failed to load mappings:', error);
+        }
+      } else {
+        setMappings({});
       }
-    } else {
-      console.log('⚠️ DEBUG: No mappings found in localStorage');
     }
-  }, []);
+  }, [isVisible]);
 
   // Save mappings to localStorage
   const saveMappings = (newMappings: AccountMapping) => {
@@ -62,7 +62,7 @@ const AccountMappingManager: React.FC = () => {
     saveMappings(newMappings);
     setNewName('');
     setNewAccount('');
-    
+
     alert(`Mapping berhasil ditambahkan:\n${nameUpper} → ${accountFormatted}`);
   };
 
@@ -100,7 +100,7 @@ const AccountMappingManager: React.FC = () => {
 
   if (!isVisible) {
     return (
-      <button 
+      <button
         onClick={() => setIsVisible(true)}
         className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-blue-600 transition-colors"
       >
@@ -114,7 +114,7 @@ const AccountMappingManager: React.FC = () => {
       <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Kelola Mapping Nama → Nomor Rekening</h2>
-          <button 
+          <button
             onClick={() => setIsVisible(false)}
             className="text-gray-500 hover:text-gray-700 text-2xl"
           >
@@ -168,7 +168,7 @@ const AccountMappingManager: React.FC = () => {
               </button>
             </div>
           </div>
-          
+
           {Object.keys(mappings).length === 0 ? (
             <p className="text-gray-500 italic">Belum ada mapping. Tambahkan mapping pertama di atas.</p>
           ) : (
@@ -196,7 +196,7 @@ const AccountMappingManager: React.FC = () => {
           <strong>Cara Penggunaan:</strong>
           <ul className="mt-1 space-y-1">
             <li>• <strong>Manual:</strong> Tambahkan nama dan nomor rekening di form atas</li>
-            <li>• <strong>Otomatis:</strong> Isi field "Nomor Rekening Tujuan" saat print/share → tersimpan otomatis</li>
+            <li>• <strong>Otomatis:</strong> Klik "Lanjut ke Tampilan" setelah isi form → Muncul popup simpan</li>
             <li>• Format nomor rekening: ***********xxxx (11 bintang + 4 digit terakhir)</li>
             <li>• Nama akan otomatis diubah ke HURUF BESAR</li>
             <li>• Data disimpan di browser (localStorage)</li>
@@ -207,8 +207,7 @@ const AccountMappingManager: React.FC = () => {
         <div className="text-sm text-green-700 bg-green-50 p-3 rounded border border-green-200">
           <strong>🤖 Fitur Auto-Save Aktif:</strong>
           <p className="mt-1">
-            Ketika Anda mengisi field "Nomor Rekening Tujuan" secara manual dan melakukan
-            <strong> Print/PDF/Share WhatsApp</strong>, mapping akan tersimpan otomatis untuk penggunaan selanjutnya.
+            Sistem akan mendeteksi penerima baru saat Anda klik tombol <strong>Lanjut ke Tampilan</strong> dan menawarkan untuk menyimpannya.
           </p>
         </div>
       </div>

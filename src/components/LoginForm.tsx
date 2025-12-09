@@ -28,7 +28,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading = false, error
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Masuk ke Sistem</h1>
-          <p className="text-gray-600">Cetak Bukti Transfer - Jasa HRY</p>
+          <p className="text-gray-600">Cetak Bukti Transfer - CetakStrukMu</p>
         </div>
 
         {/* Login Form */}
@@ -130,7 +130,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading = false, error
         {/* Footer */}
         <div className="text-center mt-8">
           <p className="text-sm text-gray-500">
-            © 2024 Jasa HRY. Sederhana, Cepat, Rapi!
+            © 2024 CetakStrukMu. Sederhana, Cepat, Rapi!
           </p>
         </div>
       </div>

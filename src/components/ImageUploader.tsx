@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, FileImage, Camera } from 'lucide-react';
+import { Upload, FileImage, ZoomIn, ZoomOut } from 'lucide-react';
 import { BankType } from '../types/TransferData';
 
 interface ImageUploaderProps {
@@ -10,6 +10,7 @@ interface ImageUploaderProps {
 export default function ImageUploader({ onImageUpload, selectedBank }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showExample, setShowExample] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -24,10 +25,10 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     const imageFile = files.find(file => file.type.startsWith('image/'));
-    
+
     if (imageFile) {
       processImage(imageFile);
     }
@@ -57,6 +58,12 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
       onImageUpload(imageUrl);
     };
     reader.readAsDataURL(file);
+  };
+
+  // Mapping contoh struk (placeholder path)
+  const getExampleImage = (bank: BankType) => {
+    // Nanti user tinggal replace file di folder ini
+    return `/src/assets/examples/${bank.toLowerCase()}_example.jpg`;
   };
 
   if (isProcessing) {
@@ -130,13 +137,12 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
           </div>
         </div>
       </div>
-      
+
       <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
-          isDragging 
-            ? 'border-blue-500 bg-blue-50' 
-            : 'border-gray-300 hover:border-gray-400'
-        }`}
+        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragging
+          ? 'border-blue-500 bg-blue-50'
+          : 'border-gray-300 hover:border-gray-400'
+          }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -144,17 +150,17 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Upload className="w-8 h-8 text-gray-400" />
         </div>
-        
+
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Unggah Struk Transfer
         </h3>
         <p className="text-gray-600 mb-6">
           Seret foto struk ke sini atau klik untuk pilih file
         </p>
-        
+
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <label className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer transition-colors">
-            <FileImage className="w-5 h-5 mr-2" />
+            <Upload className="w-5 h-5 mr-2" />
             Pilih Foto
             <input
               type="file"
@@ -163,24 +169,98 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
               className="hidden"
             />
           </label>
-          
-          <label className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg cursor-pointer transition-colors">
-            <Camera className="w-5 h-5 mr-2" />
-            Ambil Foto
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFileInput}
-              className="hidden"
-            />
-          </label>
+
+          <button
+            onClick={() => setShowExample(true)}
+            className="inline-flex items-center px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors font-medium"
+          >
+            <FileImage className="w-5 h-5 mr-2" />
+            Contoh Struk
+          </button>
         </div>
-        
+
         <p className="text-sm text-gray-500 mt-4">
           Format: JPG, PNG, WebP (Maksimal 10MB)
         </p>
       </div>
+
+      {/* Example Modal */}
+      {showExample && selectedBank && (
+        <ExampleModal
+          bank={selectedBank}
+          onClose={() => setShowExample(false)}
+          imageSrc={getExampleImage(selectedBank)}
+        />
+      )}
     </div>
   );
 }
+
+// Sub-component agar state zoom terisolasi dan reset saat dibuka ulang
+function ExampleModal({ bank, onClose, imageSrc }: { bank: string, onClose: () => void, imageSrc: string }) {
+  const [zoom, setZoom] = useState(1);
+
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.5, 3));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.5, 1));
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="p-4 border-b flex justify-between items-center bg-white z-10">
+          <h3 className="font-bold text-gray-900">Contoh Struk {bank}</h3>
+          <div className="flex items-center space-x-2">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={handleZoomOut}
+                disabled={zoom <= 1}
+                className={`p-1 rounded ${zoom <= 1 ? 'text-gray-300' : 'text-gray-700 hover:bg-white shadow-sm'}`}
+              >
+                <ZoomOut className="w-5 h-5" />
+              </button>
+              <span className="px-2 text-sm font-medium flex items-center text-gray-600">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={handleZoomIn}
+                disabled={zoom >= 3}
+                className={`p-1 rounded ${zoom >= 3 ? 'text-gray-300' : 'text-gray-700 hover:bg-white shadow-sm'}`}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </button>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 ml-4">
+              <span className="text-2xl">×</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Image Container */}
+        <div className="p-6 bg-gray-100 overflow-auto flex-1 flex">
+          <div className="relative m-auto">
+            <img
+              src={imageSrc}
+              alt={`Contoh Struk ${bank}`}
+              className="object-contain rounded shadow-sm transition-all duration-200"
+              style={{
+                maxHeight: `${zoom * 65}vh`,
+                maxWidth: `${zoom * 100}%`
+              }}
+              onError={(e) => {
+                e.currentTarget.src = 'https://via.placeholder.com/300x500?text=Contoh+Struk+Belum+Ada';
+                e.currentTarget.parentElement!.innerHTML += '<p class="text-center text-red-500 mt-2 text-sm">File contoh belum diupload</p>';
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 bg-yellow-50 text-sm text-yellow-800 text-center border-t border-yellow-100 z-10 font-medium">
+          ⚠️ Pastikan foto struk Anda <strong>mirip dengan contoh di atas</strong> agar terbaca otomatis.
+        </div>
+      </div>
+    </div>
+  );
+}
+
