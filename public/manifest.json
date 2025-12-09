@@ -1,5 +1,5 @@
 {
-  "name": "Cetak Struk Transfer - Jasa HRY",
+  "name": "CetakStrukMu",
   "short_name": "Cetak Struk",
   "description": "Aplikasi cetak struk transfer untuk semua bank - BCA, BRI, Mandiri, BNI, SeaBank, DANA",
   "start_url": "/",
@@ -9,7 +9,11 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "id",
-  "categories": ["business", "finance", "productivity"],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
