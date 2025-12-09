@@ -100,7 +100,7 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       const validCredentials = [
-        { username: 'admin', password: 'admin123' },
+        { username: 'admin', password: 'sddqad123' },
         { username: 'user', password: 'user123' },
         { username: 'hry', password: 'hry2025' }
       ];

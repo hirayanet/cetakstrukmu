@@ -121,8 +121,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, isLoading = false, error
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600 text-center mb-2">Demo Credentials:</p>
             <div className="text-xs text-gray-500 space-y-1">
-              <p><strong>Username:</strong> admin</p>
-              <p><strong>Password:</strong> admin123</p>
+              <p><strong>Username:</strong> user</p>
+              <p><strong>Password:</strong> user123</p>
             </div>
           </div>
         </div>
