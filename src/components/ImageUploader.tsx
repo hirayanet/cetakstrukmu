@@ -87,7 +87,7 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8">
+    <div className="bg-white rounded-2xl shadow-lg p-4 md:p-8">
       {selectedBank && (
         <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center space-x-2">
@@ -139,7 +139,7 @@ export default function ImageUploader({ onImageUpload, selectedBank }: ImageUplo
       </div>
 
       <div
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${isDragging
+        className={`border-2 border-dashed rounded-xl p-4 md:p-8 text-center transition-all duration-200 ${isDragging
           ? 'border-blue-500 bg-blue-50'
           : 'border-gray-300 hover:border-gray-400'
           }`}

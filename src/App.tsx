@@ -384,7 +384,7 @@ function App() {
   // DEBUG: log setiap render dan perubahan step
   console.log('[DEBUG][APP][RENDER] step:', step, '| transferData.receiverAccount:', transferData.receiverAccount);
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen min-h-[100dvh] bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -400,35 +400,35 @@ function App() {
             </div>
             <div className="flex items-center space-x-4">
               {/* User info and actions */}
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">Halo, <strong>{currentUser}</strong></span>
+              <div className="flex items-center space-x-2 md:space-x-3">
+                <span className="text-sm text-gray-600 hidden md:inline">Halo, <strong>{currentUser}</strong></span>
 
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="flex items-center space-x-1 px-2 py-1 md:px-3 md:py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Pengaturan Toko"
                 >
-                  <Settings className="w-4 h-4" />
-                  <span>Setting</span>
+                  <Settings className="w-5 h-5 md:w-4 md:h-4" />
+                  <span className="hidden md:inline">Setting</span>
                 </button>
 
                 {step !== 'bank-select' && (
                   <button
                     onClick={handleNewReceipt}
-                    className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="flex items-center space-x-1 px-2 py-1 md:px-3 md:py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                     title="Kembali ke Home"
                   >
-                    <Home className="w-4 h-4" />
-                    <span>Home</span>
+                    <Home className="w-5 h-5 md:w-4 md:h-4" />
+                    <span className="hidden md:inline">Home</span>
                   </button>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                  className="flex items-center space-x-1 px-2 py-1 md:px-3 md:py-1 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                   title="Keluar"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Keluar</span>
+                  <LogOut className="w-5 h-5 md:w-4 md:h-4" />
+                  <span className="hidden md:inline">Keluar</span>
                 </button>
               </div>
             </div>
