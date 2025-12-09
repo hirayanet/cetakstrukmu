@@ -395,7 +395,7 @@ function App() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">CetakStrukMu</h1>
-                <p className="text-sm text-gray-600">Upload • Klik • Selesai</p>
+                <p className="text-sm text-gray-600">Upload-Klik-Selesai</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
