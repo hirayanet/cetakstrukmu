@@ -21,7 +21,7 @@ export default function OnlineIndicator() {
             </span>
             <span className={`text-xs font-medium transition-colors duration-300 ${highlight ? 'text-green-800 font-bold' : 'text-green-700'
                 }`}>
-                {onlineCount} User Online
+                {onlineCount} <span className="hidden md:inline">User Online</span>
             </span>
         </div>
     );
