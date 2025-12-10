@@ -228,23 +228,23 @@ function parseBRIReceipt(text: string, bankType: BankType, paperSize: '58mm' | '
       }
     }
 
-    // Reference number - Look for "No. Ref" followed by number
-    if ((upperLine.includes('NO.') && upperLine.includes('REF')) ||
-      upperLine.includes('NO REF')) {
-      console.log(`🎯 Found "No. Ref" at line ${i}: "${line}"`);
+    // Reference number - Look for "No. Ref" or "No. Re" (OCR error)
+    if ((upperLine.includes('NO.') && (upperLine.includes('REF') || upperLine.includes('RE'))) ||
+      upperLine.includes('NO REF') || upperLine.includes('NO RE')) {
+      console.log(`🎯 Found "No. Ref" candidate at line ${i}: "${line}"`);
 
-      // Check same line first
-      const sameLineMatch = line.match(/(\d{12})/);
+      // 1. Check same line (numeric or alphanumeric)
+      const sameLineMatch = line.match(/(\d{9,})|(BR\d{7,})/);
       if (sameLineMatch) {
-        referenceNumber = sameLineMatch[1];
+        referenceNumber = sameLineMatch[0];
         console.log(`✅ BRI Reference FOUND in SAME LINE: "${referenceNumber}"`);
       } else {
-        // Check next line
+        // 2. Check next line
         const nextLine = lines[i + 1];
         if (nextLine) {
-          const nextLineMatch = nextLine.match(/(\d{12})/);
+          const nextLineMatch = nextLine.match(/(\d{9,})|(BR\d{7,})/);
           if (nextLineMatch) {
-            referenceNumber = nextLineMatch[1];
+            referenceNumber = nextLineMatch[0];
             console.log(`✅ BRI Reference FOUND in NEXT LINE: "${referenceNumber}"`);
           }
         }
@@ -284,24 +284,43 @@ function parseBRIReceipt(text: string, bankType: BankType, paperSize: '58mm' | '
       }
     }
 
-    // Receiver account - Look for BRI account format: "6603 0103 5831 539"
-    // Pattern: 4 digits space 4 digits space 4 digits space 3 digits
-    if (line.match(/\d{4}\s+\d{4}\s+\d{4}\s+\d{3}/)) {
-      receiverAccount = line.match(/\d{4}\s+\d{4}\s+\d{4}\s+\d{3}/)?.[0] || '';
-      console.log('💳 BRI Receiver Account FOUND (format 1):', receiverAccount);
+    // Receiver account - Improved Logic to avoid Sender Account
+    // Only accept account number if we are NOT in the "Sumber Dana" section
+    // Simple heuristic: If "Sumber Dana" was found recently (within last 3 lines), ignore this account number
+    let isSenderSection = false;
+    for (let k = Math.max(0, i - 3); k <= i; k++) {
+      if (lines[k].toUpperCase().includes('SUMBER DANA')) {
+        isSenderSection = true;
+        break;
+      }
     }
-    // Alternative: 4-4-7 format like "6603 0103 5831539"
-    else if (line.match(/\d{4}\s+\d{4}\s+\d{7}/)) {
-      receiverAccount = line.match(/\d{4}\s+\d{4}\s+\d{7}/)?.[0] || '';
-      console.log('💳 BRI Receiver Account FOUND (format 2):', receiverAccount);
-    }
-    // Alternative: continuous 15 digits
-    else if (!receiverAccount && line.match(/^\d{15}$/)) {
-      const accountNumber = line.match(/^\d{15}$/)?.[0] || '';
-      if (accountNumber) {
-        // Format with spaces: xxxx xxxx xxxx xxx
-        receiverAccount = accountNumber.replace(/(\d{4})(\d{4})(\d{4})(\d{3})/, '$1 $2 $3 $4');
-        console.log('💳 BRI Receiver Account FORMATTED:', receiverAccount);
+
+    if (!isSenderSection) {
+      // Clean common OCR errors in account numbers (O->0, C->0, etc)
+      const cleanLine = line.replace(/[OocC]/g, '0').replace(/[Il]/g, '1');
+
+      // 1. Check for standard 15 digit format with spaces: "0848 0100 0017 564"
+      // Relaxed to accept 2-4 digits in last group (handling missing last digit)
+      if (cleanLine.match(/\d{4}\s+\d{4}\s+\d{4}\s+\d{2,4}/)) {
+        receiverAccount = cleanLine.match(/\d{4}\s+\d{4}\s+\d{4}\s+\d{2,4}/)?.[0] || '';
+        console.log('💳 BRI Receiver Account FOUND (format 4-4-4-x):', receiverAccount);
+      }
+      // 2. Check for continuous 14-16 digits: "22031747111156"
+      else if (cleanLine.match(/\b\d{14,16}\b/)) {
+        const rawAccount = cleanLine.match(/\b\d{14,16}\b/)?.[0] || '';
+        // Format nicely: 4-4-4-3 (or whatever remains)
+        receiverAccount = rawAccount.replace(/(\d{4})(\d{4})(\d{4})(\d+)/, '$1 $2 $3 $4');
+        console.log('💳 BRI Receiver Account FOUND (continuous 14-16):', receiverAccount);
+      }
+      // 3. Check for 4-4-7 format: "6603 0103 5831539"
+      else if (cleanLine.match(/\d{4}\s+\d{4}\s+\d{6,8}/)) {
+        receiverAccount = cleanLine.match(/\d{4}\s+\d{4}\s+\d{6,8}/)?.[0] || '';
+        console.log('💳 BRI Receiver Account FOUND (format 4-4-7):', receiverAccount);
+      }
+    } else {
+      // Only log if it actually looks like an account number to avoid spam
+      if (line.match(/\d{10,}/)) {
+        console.log('⚠️ Ignoring potential account number in Sender Section:', line);
       }
     }
   }
