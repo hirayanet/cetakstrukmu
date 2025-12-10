@@ -413,12 +413,12 @@ function App() {
                 <p className="text-xs md:text-sm text-gray-600 hidden md:block">Upload-Klik-Selesai</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4">
               {/* Online Indicator (Admin Only) */}
-              {currentUser === 'admin' && <OnlineIndicator />}
+              {currentUser === 'admin' && <div className="mr-1 md:mr-0"><OnlineIndicator /></div>}
 
               {/* User info and actions */}
-              <div className="flex items-center space-x-2 md:space-x-3">
+              <div className="flex items-center space-x-1 md:space-x-3">
                 <span className="text-sm text-gray-600 hidden md:inline">Halo, <strong>{currentUser}</strong></span>
 
                 <button
