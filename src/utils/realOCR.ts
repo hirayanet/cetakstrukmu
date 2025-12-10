@@ -365,23 +365,78 @@ function parseMandiriReceipt(text: string, bankType: BankType, paperSize: '58mm'
     const line = lines[i];
     const upperLine = line.toUpperCase();
 
-    // Mandiri specific patterns - akan disesuaikan setelah upload resi Mandiri
-    if (line.match(/\d{2}-\d{2}-\d{4}/)) {
-      date = line.match(/\d{2}-\d{2}-\d{4}/)?.[0] || '';
+    // 1. Date, Time, & Reference Parsing
+    // Format: "04 Des 2025 • 16:15:52 WIB • No. Ref. 2512041122006741849"
+    // Or sometimes split across lines
+    if (line.match(/\d{2}\s+\w+\s+\d{4}/) && line.includes(':')) {
+      const dateMatch = line.match(/(\d{2}\s+\w+\s+\d{4})/);
+      const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})/);
+      if (dateMatch) date = dateMatch[1];
+      if (timeMatch) time = timeMatch[0];
+      console.log('📅 Mandiri Date/Time:', { date, time });
     }
 
-    if (line.startsWith('Rp ') || line.includes('Rp')) {
-      const amountMatch = line.match(/Rp\s*([\d,\.]+)/);
-      if (amountMatch) {
-        const cleanAmount = amountMatch[1].replace(/[,\.]/g, '');
-        amount = parseInt(cleanAmount);
-        console.log('💰 Mandiri Amount:', { original: line, parsed: amount });
+    // Reference Number (often on the same line as date or separate)
+    if (upperLine.includes('NO. REF') || upperLine.includes('NO REF')) {
+      const refMatch = line.match(/(?:NO\.?\s*REF\.?)\s*(\d+)/i);
+      if (refMatch) {
+        referenceNumber = refMatch[1];
+        console.log('✅ Mandiri Ref No:', referenceNumber);
       }
     }
 
-    // Reference pattern untuk Mandiri
-    if (upperLine.includes('REF') || upperLine.includes('JOURNAL')) {
-      referenceNumber = line.replace(/.*(?:REF|JOURNAL)\s*:?\s*/i, '').trim();
+    // 2. Amount Parsing
+    // "Total Transaksi ... Rp 2.009.596"
+    if (upperLine.includes('TOTAL TRANSAKSI')) {
+      // Check same line
+      if (line.includes('Rp')) {
+        const amountMatch = line.match(/Rp\s*([\d,\.]+)/);
+        if (amountMatch) {
+          const cleanAmount = amountMatch[1].replace(/[,\.]/g, '');
+          amount = parseInt(cleanAmount);
+          console.log('💰 Mandiri Amount (Same Line):', amount);
+        }
+      } else {
+        // Check next line
+        const nextLine = lines[i + 1];
+        if (nextLine && nextLine.includes('Rp')) {
+          const amountMatch = nextLine.match(/Rp\s*([\d,\.]+)/);
+          if (amountMatch) {
+            const cleanAmount = amountMatch[1].replace(/[,\.]/g, '');
+            amount = parseInt(cleanAmount);
+            console.log('💰 Mandiri Amount (Next Line):', amount);
+          }
+        }
+      }
+    }
+
+    // 3. Receiver Name & Account
+    // Strategy: Look for "Bank Mandiri - 1210006207728"
+    // The line ABOVE this is likely the Receiver Name
+    if (line.includes('Bank Mandiri -') && line.match(/\d{10,}/)) {
+      const accountMatch = line.match(/(\d{10,})/);
+      if (accountMatch) {
+        receiverAccount = accountMatch[1];
+        console.log('💳 Mandiri Receiver Account:', receiverAccount);
+
+        // Name is likely the previous line
+        const prevLine = lines[i - 1];
+        if (prevLine && !prevLine.includes('Transfer') && !prevLine.includes('Penerima')) {
+          receiverName = prevLine.replace(/^(Bpk|Ibu|Sdr)\.?\s+/i, '');
+          console.log('👥 Mandiri Receiver Name (from prev line):', receiverName);
+        }
+      }
+    }
+
+    // 4. Sender Name
+    // Strategy: Look for "Bank Mandiri - .........9764" (Masked)
+    // The line ABOVE this is likely the Sender Name
+    if (line.includes('Bank Mandiri -') && line.includes('...')) {
+      const prevLine = lines[i - 1];
+      if (prevLine && !prevLine.includes('Total') && !prevLine.includes('Sumber')) {
+        senderName = prevLine;
+        console.log('👤 Mandiri Sender Name (from prev line):', senderName);
+      }
     }
   }
 
@@ -417,23 +472,79 @@ function parseBNIReceipt(text: string, bankType: BankType, paperSize: '58mm' | '
     const line = lines[i];
     const upperLine = line.toUpperCase();
 
-    // BNI specific patterns - akan disesuaikan setelah upload resi BNI
-    if (line.match(/\d{2}\/\d{2}\/\d{4}/)) {
-      date = line.match(/\d{2}\/\d{2}\/\d{4}/)?.[0] || '';
+    // 1. Date & Time Parsing
+    // Format: "06 Des 2025 • 04:41:51 WIB •"
+    if (line.match(/\d{2}\s+\w+\s+\d{4}/) && line.includes(':')) {
+      const dateMatch = line.match(/(\d{2}\s+\w+\s+\d{4})/);
+      const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})/);
+      if (dateMatch) date = dateMatch[1];
+      if (timeMatch) time = timeMatch[0];
+      console.log('📅 BNI Date/Time:', { date, time });
     }
 
-    if (line.startsWith('Rp ') || line.includes('Rp')) {
+    // 2. Amount Parsing
+    // "Rp1.000.755" (Standalone or after "Nominal")
+    if (line.includes('Rp') && !line.includes('Biaya')) {
       const amountMatch = line.match(/Rp\s*([\d,\.]+)/);
       if (amountMatch) {
         const cleanAmount = amountMatch[1].replace(/[,\.]/g, '');
-        amount = parseInt(cleanAmount);
-        console.log('💰 BNI Amount:', { original: line, parsed: amount });
+        // Only update if larger (to avoid capturing small fees) or if amount is 0
+        const parsedAmount = parseInt(cleanAmount);
+        if (parsedAmount > amount) {
+          amount = parsedAmount;
+          console.log('💰 BNI Amount:', amount);
+        }
       }
     }
 
-    // Reference pattern untuk BNI
-    if (upperLine.includes('REF') || upperLine.includes('TRACE')) {
-      referenceNumber = line.replace(/.*(?:REF|TRACE)\s*:?\s*/i, '').trim();
+    // 3. Reference Number
+    // "Ref ID: 20251206044147000158"
+    if (upperLine.includes('REF ID') || upperLine.includes('REF NO')) {
+      const refMatch = line.match(/:\s*(\d+)/);
+      if (refMatch) {
+        referenceNumber = refMatch[1];
+        console.log('✅ BNI Ref ID:', referenceNumber);
+      } else {
+        // Try next line if empty
+        const nextLine = lines[i + 1];
+        if (nextLine && nextLine.match(/^\d+$/)) {
+          referenceNumber = nextLine;
+          console.log('✅ BNI Ref ID (Next Line):', referenceNumber);
+        }
+      }
+    }
+
+    // 4. Sender Name & Account
+    // Header: "Sumber dana" -> Next line: Name -> Next line: Account
+    if (upperLine.includes('SUMBER DANA')) {
+      const nameLine = lines[i + 1];
+      if (nameLine && !nameLine.includes('BNI') && !nameLine.match(/\d/)) {
+        senderName = nameLine;
+        console.log('👤 BNI Sender Name:', senderName);
+      }
+    }
+
+    // 5. Receiver Name & Account
+    // Header: "Penerima" -> Next line: Name -> Next line: "BNI • 0799641820"
+    if (upperLine.includes('PENERIMA')) {
+      // Name is usually the next line
+      const nameLine = lines[i + 1];
+      if (nameLine) {
+        // Remove "Bpk", "Ibu", "Sdr" prefixes if present
+        receiverName = nameLine.replace(/^(Bpk|Ibu|Sdr)\.?\s+/i, '');
+        console.log('👥 BNI Receiver Name:', receiverName);
+      }
+
+      // Account is usually 2 lines down: "BNI • 0799641820"
+      const accountLine = lines[i + 2];
+      if (accountLine) {
+        // Look for digits
+        const accountMatch = accountLine.match(/(\d{8,})/);
+        if (accountMatch) {
+          receiverAccount = accountMatch[1];
+          console.log('💳 BNI Receiver Account:', receiverAccount);
+        }
+      }
     }
   }
 
@@ -1339,9 +1450,12 @@ function preprocessImage(imageUrl: string): Promise<string> {
         // This is more aggressive than just contrast, good for clear receipts.
         // But let's stick to high contrast to avoid losing faint details.
 
-        // Increase contrast (2.0x) - More aggressive than before (1.5x)
-        const factor = 2.0; // Contrast factor
-        const contrast = (gray - 128) * factor + 128;
+        // Increase contrast with a shifted midpoint to preserve light gray text
+        // Previous midpoint was 128, which turned light gray (e.g. 200) into white.
+        // New midpoint 210 pushes light gray (200) down to dark, while keeping white (255) white.
+        const factor = 2.5; // Higher contrast
+        const midpoint = 210; // Shifted midpoint
+        const contrast = (gray - midpoint) * factor + midpoint;
 
         // Clamp value
         const final = Math.max(0, Math.min(255, contrast));
