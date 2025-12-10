@@ -13,7 +13,7 @@ import { saveAuthData, loadAuthData, clearAuthData, saveAppState, loadAppState, 
 import { Settings, X, Save, BarChart } from 'lucide-react';
 import OnlineIndicator from './components/OnlineIndicator';
 import ReportDashboard from './components/ReportDashboard';
-import { logVisitor, incrementStat } from './utils/firebase';
+import { logVisitor, incrementStat, usePresenceRegistration } from './utils/firebase';
 
 function App() {
   // Authentication state
@@ -87,6 +87,9 @@ function App() {
     // Log visitor once per session
     logVisitor();
   }, []);
+
+  // Register online presence (run once)
+  usePresenceRegistration();
 
   // Save app state whenever it changes (only if authenticated)
   useEffect(() => {

@@ -1,9 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, onDisconnect, set, push, serverTimestamp, increment, runTransaction } from 'firebase/database';
+import { getDatabase, ref, onValue, onDisconnect, set, push, runTransaction, remove } from 'firebase/database';
 import { useEffect, useState } from 'react';
 
 // KONFIGURASI FIREBASE
-// Ganti dengan konfigurasi proyek Firebase Anda sendiri
 const firebaseConfig = {
     apiKey: "AIzaSyD-AIzaSyCZcGKXV7v7pJmQvMmauTRg8KQBJD_e6G0",
     authDomain: "cetakstrukmu.firebaseapp.com",
@@ -18,42 +17,51 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
 
-// HOOK: Melacak Status Online User
-export function usePresence() {
-    const [onlineCount, setOnlineCount] = useState(1);
-
+// HOOK: Register Presence (Panggil sekali saja di App.tsx)
+export function usePresenceRegistration() {
     useEffect(() => {
-        // Referensi khusus untuk cek koneksi
         const connectedRef = ref(database, '.info/connected');
         const onlineUsersRef = ref(database, 'status/online_users');
+        let myUserRef: any;
 
         const unsubscribe = onValue(connectedRef, (snap) => {
             if (snap.val() === true) {
                 // Kita terkoneksi!
-                // Buat referensi baru untuk user ini
-                const myUserRef = push(onlineUsersRef);
+                myUserRef = push(onlineUsersRef);
 
-                // Saat putus koneksi, hapus data user ini
+                // Saat putus koneksi (tab tutup/internet mati), hapus data
                 onDisconnect(myUserRef).remove();
 
-                // Set status sekarang jadi true
+                // Set status online
                 set(myUserRef, true);
-            }
-        });
-
-        // Dengarkan jumlah user online
-        const countUnsubscribe = onValue(onlineUsersRef, (snap) => {
-            if (snap.exists()) {
-                setOnlineCount(Object.keys(snap.val()).length);
-            } else {
-                setOnlineCount(1); // Minimal kita sendiri
             }
         });
 
         return () => {
             unsubscribe();
-            countUnsubscribe();
+            // Bersihkan saat component unmount
+            if (myUserRef) {
+                remove(myUserRef);
+            }
         };
+    }, []);
+}
+
+// HOOK: Baca Jumlah Online User (Read-Only)
+export function useOnlineCount() {
+    const [onlineCount, setOnlineCount] = useState(0);
+
+    useEffect(() => {
+        const onlineUsersRef = ref(database, 'status/online_users');
+        const unsubscribe = onValue(onlineUsersRef, (snap) => {
+            if (snap.exists()) {
+                setOnlineCount(Object.keys(snap.val()).length);
+            } else {
+                setOnlineCount(0);
+            }
+        });
+
+        return () => unsubscribe();
     }, []);
 
     return onlineCount;

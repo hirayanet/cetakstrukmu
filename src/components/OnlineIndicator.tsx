@@ -1,8 +1,8 @@
 import React from 'react';
-import { usePresence } from '../utils/firebase';
+import { useOnlineCount } from '../utils/firebase';
 
 export default function OnlineIndicator() {
-    const onlineCount = usePresence();
+    const onlineCount = useOnlineCount();
 
     return (
         <div className="flex items-center space-x-2 bg-green-50 px-3 py-1 rounded-full border border-green-100">

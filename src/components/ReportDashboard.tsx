@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Printer, Download, Share2, FileText, Users } from 'lucide-react';
-import { useGlobalStats, useDailyStats, usePresence } from '../utils/firebase';
+import { useGlobalStats, useDailyStats, useOnlineCount } from '../utils/firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ReportDashboardProps {
@@ -10,7 +10,7 @@ interface ReportDashboardProps {
 export default function ReportDashboard({ onClose }: ReportDashboardProps) {
     const stats = useGlobalStats();
     const dailyStats = useDailyStats();
-    const onlineCount = usePresence();
+    const onlineCount = useOnlineCount();
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
