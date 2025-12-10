@@ -4,6 +4,8 @@ import { TransferData } from '../types/TransferData';
 import { uploadReceiptToCloudinary, generateFileName } from '../utils/cloudinaryUpload';
 import { autoSaveAccountMapping } from '../utils/realOCR';
 import { UserSettings } from '../utils/auth';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 interface ReceiptPreviewProps {
   transferData: TransferData;
@@ -114,8 +116,8 @@ export default function ReceiptPreview({ transferData, shopSettings }: ReceiptPr
         }
       }
 
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
+      // const html2canvas = (await import('html2canvas')).default; // REMOVED
+      // const jsPDF = (await import('jspdf')).default; // REMOVED
 
       const receiptElement = document.querySelector('.receipt-content') as HTMLElement;
       if (!receiptElement) {
