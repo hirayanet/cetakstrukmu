@@ -107,46 +107,138 @@ function parseBCAReceipt(text: string, bankType: BankType, paperSize: '58mm' | '
     const line = lines[i];
     const upperLine = line.toUpperCase();
 
-    // Date and time - format: 25/07 07:29:32
-    if (line.match(/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}/)) {
-      const dateTimeMatch = line.match(/(\d{2}\/\d{2})\s+(\d{2}:\d{2}:\d{2})/);
-      if (dateTimeMatch) {
-        date = dateTimeMatch[1] + '/' + new Date().getFullYear();
-        time = dateTimeMatch[2];
-      }
-    }
+    // 1. Detect Receipt Type
+    // New Format (myBCA/English) usually has "Transfer Successful" or "IDR" or "Beneficiary"
+    const isNewFormat = lines.some(l =>
+      l.toUpperCase().includes('BENEFICIARY') ||
+      l.toUpperCase().includes('IDR') ||
+      l.toUpperCase().includes('TRANSFER SUCCESSFUL')
+    );
 
-    // Account number - after "Ke" - format: Ke 1670903504
-    if (upperLine.startsWith('KE ')) {
-      receiverAccount = line.replace(/^KE\s+/i, '').trim();
-    }
+    if (isNewFormat) {
+      console.log('🔵 Detected NEW BCA Format (myBCA/English)');
 
-    // Receiver name - usually line after account number
-    if (receiverAccount && !receiverName && line.length > 2 &&
-      !line.includes('Rp') && !line.includes('Ref') &&
-      !line.match(/\d{2}\/\d{2}/) && !upperLine.includes('TRANSFER')) {
-      if (line.match(/^[A-Z\s]+$/)) {
-        receiverName = line;
-      }
-    }
-
-    // Amount - format: Rp 130,000.00
-    if (line.startsWith('Rp ')) {
-      let amountMatch = line.match(/Rp\s+([\d,]+)\.00/);
-      if (!amountMatch) {
-        amountMatch = line.match(/Rp\s+([\d,]+)/);
+      // Date & Time: "09 Dec 2025 11:41:11"
+      if (line.match(/\d{2}\s+\w+\s+\d{4}\s+\d{2}:\d{2}:\d{2}/)) {
+        const dateTimeMatch = line.match(/(\d{2}\s+\w+\s+\d{4})\s+(\d{2}:\d{2}:\d{2})/);
+        if (dateTimeMatch) {
+          date = dateTimeMatch[1];
+          time = dateTimeMatch[2];
+          console.log('📅 BCA Date/Time:', { date, time });
+        }
       }
 
-      if (amountMatch) {
-        const cleanAmount = amountMatch[1].replace(/,/g, '');
-        amount = parseInt(cleanAmount);
-        console.log('💰 BCA Amount:', { original: line, parsed: amount });
+      // Amount: "IDR 2,000,571.00" -> 2000571
+      if (upperLine.includes('IDR') && !upperLine.includes('CURRENCY')) {
+        const amountMatch = line.match(/IDR\s*([\d,]+)(?:\.00)?/);
+        if (amountMatch) {
+          const cleanAmount = amountMatch[1].replace(/,/g, '');
+          amount = parseInt(cleanAmount);
+          console.log('💰 BCA Amount:', amount);
+        }
       }
-    }
 
-    // Reference number - format: Ref 9503120250725072931956672CAE83FCB72B
-    if (upperLine.startsWith('REF ')) {
-      referenceNumber = line.replace(/^REF\s+/i, '').trim();
+      // Receiver Name: "Beneficiary Name WARSA DIANA" or next line
+      if (upperLine.includes('BENEFICIARY NAME')) {
+        // Check same line first
+        let name = line.replace(/BENEFICIARY NAME/i, '').trim();
+        if (!name) {
+          // Check next line
+          const nextLine = lines[i + 1];
+          if (nextLine) name = nextLine.trim();
+        }
+        if (name) {
+          receiverName = name;
+          console.log('👥 BCA Receiver Name:', receiverName);
+        }
+      }
+
+      // Receiver Account: "Beneficiary Account 777 - 309 - 8541"
+      if (upperLine.includes('BENEFICIARY ACCOUNT')) {
+        // Check same line first
+        let acc = line.replace(/BENEFICIARY ACCOUNT/i, '').trim();
+        if (!acc.match(/\d/)) {
+          // Check next line
+          const nextLine = lines[i + 1];
+          if (nextLine) acc = nextLine.trim();
+        }
+
+        if (acc) {
+          // Remove dashes and spaces: "777 - 309 - 8541" -> "7773098541"
+          receiverAccount = acc.replace(/[\s-]/g, '');
+          console.log('💳 BCA Receiver Account:', receiverAccount);
+        }
+      }
+
+      // Reference No: "Reference No. 9527..." (can be multi-line)
+      if (upperLine.includes('REFERENCE NO')) {
+        // Start capturing from this line or next line
+        let ref = line.replace(/REFERENCE NO\.?/i, '').trim();
+
+        // If empty or short, check next lines
+        let nextIdx = i + 1;
+        while (nextIdx < lines.length) {
+          const nextLine = lines[nextIdx];
+          // Stop if we hit a new label or empty line
+          if (nextLine.includes(':') || nextLine.trim() === '') break;
+
+          // If it looks like part of a ref number (alphanumeric), append it
+          if (nextLine.match(/^[A-Z0-9]+$/)) {
+            ref += nextLine.trim();
+          }
+          nextIdx++;
+        }
+
+        if (ref) {
+          referenceNumber = ref;
+          console.log('✅ BCA Reference No:', referenceNumber);
+        }
+      }
+
+    } else {
+      // --- OLD FORMAT (m-Transfer) ---
+
+      // Date and time - format: 25/07 07:29:32
+      if (line.match(/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}/)) {
+        const dateTimeMatch = line.match(/(\d{2}\/\d{2})\s+(\d{2}:\d{2}:\d{2})/);
+        if (dateTimeMatch) {
+          date = dateTimeMatch[1] + '/' + new Date().getFullYear();
+          time = dateTimeMatch[2];
+        }
+      }
+
+      // Account number - after "Ke" - format: Ke 1670903504
+      if (upperLine.startsWith('KE ')) {
+        receiverAccount = line.replace(/^KE\s+/i, '').trim();
+      }
+
+      // Receiver name - usually line after account number
+      if (receiverAccount && !receiverName && line.length > 2 &&
+        !line.includes('Rp') && !line.includes('Ref') &&
+        !line.match(/\d{2}\/\d{2}/) && !upperLine.includes('TRANSFER')) {
+        if (line.match(/^[A-Z\s]+$/)) {
+          receiverName = line;
+        }
+      }
+
+      // Amount - format: Rp 130,000.00
+      if (line.startsWith('Rp ')) {
+        let amountMatch = line.match(/Rp\s+([\d,]+)\.00/);
+        if (!amountMatch) {
+          amountMatch = line.match(/Rp\s+([\d,]+)/);
+        }
+
+        if (amountMatch) {
+          const cleanAmount = amountMatch[1].replace(/,/g, '');
+          amount = parseInt(cleanAmount);
+          console.log('💰 BCA Amount:', { original: line, parsed: amount });
+        }
+      }
+
+      // Reference number - format: Ref 9503120250725072931956672CAE83FCB72B
+      if (upperLine.startsWith('REF ')) {
+        referenceNumber = line.replace(/^REF\s+/i, '').trim();
+      }
     }
   }
 
