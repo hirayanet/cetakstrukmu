@@ -28,7 +28,7 @@ export default function ReportDashboard({ onClose }: ReportDashboardProps) {
 
                 <div className="p-6 space-y-8">
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-blue-600 font-medium">Total Struk</span>
@@ -54,6 +54,15 @@ export default function ReportDashboard({ onClose }: ReportDashboardProps) {
                             </div>
                             <p className="text-3xl font-bold text-purple-900">{stats.total_printed}</p>
                             <p className="text-xs text-purple-600 mt-1">Klik tombol cetak</p>
+                        </div>
+
+                        <div className="bg-teal-50 p-4 rounded-xl border border-teal-100">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-teal-600 font-medium">Simpan PDF</span>
+                                <Download className="w-5 h-5 text-teal-500" />
+                            </div>
+                            <p className="text-3xl font-bold text-teal-900">{stats.total_pdf}</p>
+                            <p className="text-xs text-teal-600 mt-1">Klik tombol download</p>
                         </div>
 
                         <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
