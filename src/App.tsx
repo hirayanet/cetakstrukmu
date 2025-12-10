@@ -451,8 +451,10 @@ function App() {
                 { type: 'BRI', name: 'Bank BRI', color: 'bg-blue-600', icon: '🏛️' },
                 { type: 'MANDIRI', name: 'Bank Mandiri', color: 'bg-yellow-500', icon: '🏪' },
                 { type: 'BNI', name: 'Bank BNI', color: 'bg-orange-500', icon: '🏢' },
+                { type: 'BSI', name: 'Bank BSI', color: 'bg-teal-600', icon: '🕌' },
                 { type: 'SEABANK', name: 'SeaBank', color: 'bg-green-600', icon: '🌊' },
-                { type: 'DANA', name: 'DANA', color: 'bg-blue-500', icon: '💳' }
+                { type: 'DANA', name: 'DANA', color: 'bg-blue-500', icon: '💳' },
+                { type: 'FLIP', name: 'Flip', color: 'bg-orange-600', icon: '🐬' }
               ].map((bank) => (
                 <button
                   key={bank.type}

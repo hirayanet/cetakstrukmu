@@ -13,7 +13,7 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
     ...initialData,
     receiverAccount: initialData.receiverAccount || '',
     // Set default nama pengirim untuk BCA
-    senderName: initialData.bankType === 'BCA' ? 'GANI MUHAMMAD RMADLAN' : initialData.senderName
+    senderName: initialData.bankType === 'BCA' ? '(INPUT MANUAL)' : initialData.senderName
   });
   const [mappingNotice, setMappingNotice] = useState('');
   const [detectionInfo, setDetectionInfo] = useState<string>('');
@@ -60,7 +60,7 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
     setFormData({
       ...initialData,
       receiverAccount: initialData.receiverAccount || '',
-      senderName: initialData.bankType === 'BCA' ? 'GANI MUHAMMAD RMADLAN' : initialData.senderName
+      senderName: initialData.bankType === 'BCA' ? '(INPUT MANUAL)' : initialData.senderName
     });
     setMappingNotice('');
   }, [initialData]);
@@ -169,8 +169,10 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
               <option value="BRI">Bank BRI</option>
               <option value="MANDIRI">Bank Mandiri</option>
               <option value="BNI">Bank BNI</option>
+              <option value="BSI">Bank BSI</option>
               <option value="SEABANK">SeaBank</option>
               <option value="DANA">DANA</option>
+              <option value="FLIP">Flip</option>
               <option value="OVO">OVO</option>
               <option value="GOPAY">GoPay</option>
               <option value="SHOPEEPAY">ShopeePay</option>

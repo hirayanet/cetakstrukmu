@@ -242,7 +242,7 @@ function parseBCAReceipt(text: string, bankType: BankType, paperSize: '58mm' | '
     }
   }
 
-  if (!senderName) senderName = 'GANI MUHAMMAD RMADLAN';
+  if (!senderName) senderName = '(INPUT MANUAL)';
 
   return {
     date: date || new Date().toLocaleDateString('id-ID'),
@@ -1658,6 +1658,254 @@ async function getWorker(): Promise<Tesseract.Worker> {
   }
   return workerInstance;
 }
+function parseBSIReceipt(text: string, bankType: BankType, paperSize: '58mm' | '80mm' = '80mm'): TransferData {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  console.log('🕌 Parsing BSI Receipt:', lines);
+
+  let senderName = '';
+  let receiverName = '';
+  let amount = 0;
+  let referenceNumber = '';
+  let receiverAccount = '';
+  let date = '';
+  let time = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const upperLine = line.toUpperCase();
+
+    // Date & Time: "06 Des 2025 09:57:36" or "06 Des 2025 • 09:57:36"
+    if (line.match(/\d{2}\s+\w{3}\s+\d{4}/)) {
+      const dateMatch = line.match(/(\d{2}\s+\w{3}\s+\d{4})/);
+      if (dateMatch) {
+        date = dateMatch[1];
+        // Try to find time on the same line
+        const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})/);
+        if (timeMatch) {
+          time = timeMatch[1];
+        }
+      }
+    }
+
+    // Amount: "Rp 350.000"
+    if (upperLine.includes('RP') || upperLine.includes('JUMLAH') || upperLine.includes('TOTAL')) {
+      const amountMatch = line.match(/Rp\s*([\d\.]+)/i);
+      if (amountMatch) {
+        const cleanAmount = amountMatch[1].replace(/\./g, '');
+        // Update amount only if it's larger (to avoid capturing fee 0 or partial amounts if any)
+        const parsedAmount = parseInt(cleanAmount);
+        if (parsedAmount > amount) {
+          amount = parsedAmount;
+        }
+      }
+    }
+
+    // Receiver Name: "Nama Penerima : Puji Setiawan"
+    if (upperLine.includes('NAMA PENERIMA')) {
+      // Check same line first (if using colon)
+      let name = line.replace(/NAMA PENERIMA\s*[:]?\s*/i, '').trim();
+      if (!name && lines[i + 1]) {
+        // Check next line
+        name = lines[i + 1].trim();
+      }
+      if (name && name.length > 2) {
+        receiverName = name;
+      }
+    }
+
+    // Sender Name: "Nama Pengirim : Ahmad Sayadi" or "Rekening Sumber"
+    if (upperLine.includes('NAMA PENGIRIM') || upperLine.includes('REKENING SUMBER')) {
+      let name = line.replace(/(NAMA PENGIRIM|REKENING SUMBER)\s*[:]?\s*/i, '').trim();
+      if (!name && lines[i + 1]) {
+        name = lines[i + 1].trim();
+      }
+      // If the name contains "BSI" or digits, it might be the account line, so skip or clean
+      if (name && !name.toUpperCase().includes('BSI') && !name.match(/\d{4}/)) {
+        senderName = name;
+      }
+    }
+
+    // Receiver Account: "Nomor Rekening Tujuan : 7328235271" or "BSI • 7328235271"
+    if (upperLine.includes('REKENING TUJUAN') || upperLine.includes('NO REK')) {
+      let acc = line.replace(/(NOMOR REKENING TUJUAN|NO REK)\s*[:]?\s*/i, '').trim();
+      if (!acc.match(/\d+/) && lines[i + 1]) {
+        acc = lines[i + 1].trim();
+      }
+      const accMatch = acc.match(/(\d{8,})/);
+      if (accMatch) {
+        receiverAccount = accMatch[1];
+      }
+    }
+    // Fallback for "BSI • 7328235271" pattern near receiver name
+    if (upperLine.includes('BSI') && line.match(/\d{8,}/)) {
+      const accMatch = line.match(/(\d{8,})/);
+      if (accMatch) {
+        // If we haven't found a receiver account yet, or this looks like one
+        if (!receiverAccount) {
+          receiverAccount = accMatch[1];
+        }
+      }
+    }
+
+    // Reference Number: "No Reff : FT2534082RDN" or "Nomor Transaksi"
+    if (upperLine.includes('NO REFF') || upperLine.includes('NOMOR TRANSAKSI') || upperLine.includes('NOMOR STRUK')) {
+      let ref = line.replace(/(NO REFF|NOMOR TRANSAKSI|NOMOR STRUK)\s*[:]?\s*/i, '').trim();
+      if (!ref && lines[i + 1]) {
+        ref = lines[i + 1].trim();
+      }
+      // Ref usually alphanumeric
+      if (ref && ref.length > 5) {
+        referenceNumber = ref;
+      }
+    }
+  }
+
+  return {
+    date: date || new Date().toLocaleDateString('id-ID'),
+    senderName,
+    amount,
+    receiverName,
+    receiverBank: 'BSI',
+    receiverAccount,
+    referenceNumber,
+    adminFee: 0,
+    paperSize,
+    bankType,
+    time
+  };
+}
+
+function parseFlipReceipt(text: string, bankType: BankType, paperSize: '58mm' | '80mm' = '80mm'): TransferData {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  console.log('🐬 Parsing FLIP Receipt:', lines);
+
+  let senderName = '';
+  let receiverName = '';
+  let amount = 0;
+  let referenceNumber = '';
+  let receiverAccount = '';
+  let date = '';
+  let time = '';
+  let receiverBank = 'FLIP'; // Default, might be overwritten if "Bank Penerima" found
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const upperLine = line.toUpperCase();
+
+    // Amount: "Rp6.100.000"
+    if (line.match(/Rp\s*[\d\.]+/i)) {
+      const amountMatch = line.match(/Rp\s*([\d\.]+)/i);
+      if (amountMatch) {
+        const cleanAmount = amountMatch[1].replace(/\./g, '');
+        const parsedAmount = parseInt(cleanAmount);
+        // Flip usually shows amount prominently. Take the largest one found or the one starting with Rp
+        if (parsedAmount > amount) {
+          amount = parsedAmount;
+        }
+      }
+    }
+
+    // Date & Time: "10 December 2025 15:49:30 WIB"
+    if (line.match(/\d{1,2}\s+[A-Za-z]+\s+\d{4}/)) {
+      const dateMatch = line.match(/(\d{1,2}\s+[A-Za-z]+\s+\d{4})/);
+      if (dateMatch) {
+        date = dateMatch[1];
+        const timeMatch = line.match(/(\d{2}:\d{2}:\d{2})/);
+        if (timeMatch) {
+          time = timeMatch[1];
+        }
+      }
+    }
+
+    // Reference Number: "ID #FT755517217"
+    if (upperLine.includes('ID #') || upperLine.includes('NO REFF')) {
+      const refMatch = line.match(/(?:ID\s*#|NO REFF\s*[:]?)\s*([A-Z0-9]+)/i);
+      if (refMatch) {
+        referenceNumber = refMatch[1];
+      }
+    }
+
+    // Receiver Name: "Penerima ... Puji Setiawan"
+    if (upperLine.startsWith('PENERIMA')) {
+      // Try to get value from same line first (if separated by spaces)
+      let val = line.replace(/^PENERIMA\s*/i, '').trim();
+      if (!val && lines[i + 1]) {
+        val = lines[i + 1].trim();
+      }
+      if (val && val.length > 2) {
+        receiverName = val;
+      }
+    }
+
+    // Sender Name: "Pengirim ... Puji Setiawan"
+    if (upperLine.startsWith('PENGIRIM')) {
+      let val = line.replace(/^PENGIRIM\s*/i, '').trim();
+      if (!val && lines[i + 1]) {
+        val = lines[i + 1].trim();
+      }
+      if (val && val.length > 2) {
+        senderName = val;
+      }
+    }
+
+    // Receiver Bank: "Bank Penerima ... Seabank/Bank BKE"
+    if (upperLine.startsWith('BANK PENERIMA')) {
+      let val = line.replace(/^BANK PENERIMA\s*/i, '').trim();
+      if (!val && lines[i + 1]) {
+        val = lines[i + 1].trim();
+      }
+      if (val) {
+        // Map common bank names if needed, or just use what's there
+        if (val.toUpperCase().includes('BCA')) receiverBank = 'BCA';
+        else if (val.toUpperCase().includes('BRI')) receiverBank = 'BRI';
+        else if (val.toUpperCase().includes('MANDIRI')) receiverBank = 'MANDIRI';
+        else if (val.toUpperCase().includes('BNI')) receiverBank = 'BNI';
+        else if (val.toUpperCase().includes('BSI')) receiverBank = 'BSI';
+        else if (val.toUpperCase().includes('SEABANK')) receiverBank = 'SEABANK';
+        else if (val.toUpperCase().includes('DANA')) receiverBank = 'DANA';
+        else receiverBank = val; // Keep original if not mapped
+      }
+    }
+
+    // Receiver Account: "Nomor Rekening ... 901334912436"
+    if (upperLine.startsWith('NOMOR REKENING')) {
+      let val = line.replace(/^NOMOR REKENING\s*/i, '').trim();
+      if (!val && lines[i + 1]) {
+        val = lines[i + 1].trim();
+      }
+      const accMatch = val.match(/(\d+)/);
+      if (accMatch) {
+        receiverAccount = accMatch[1];
+      }
+    }
+  }
+
+  // Fallback for Reference Number if not found with "ID #"
+  if (!referenceNumber) {
+    // Look for any standalone FT... string
+    for (const line of lines) {
+      const match = line.match(/\b(FT\d+)\b/);
+      if (match) {
+        referenceNumber = match[1];
+        break;
+      }
+    }
+  }
+
+  return {
+    date: date || new Date().toLocaleDateString('id-ID'),
+    senderName,
+    amount,
+    receiverName,
+    receiverBank, // Use detected bank or 'FLIP'
+    receiverAccount,
+    referenceNumber: referenceNumber || 'FLIP' + Date.now().toString().slice(-8),
+    adminFee: 0,
+    paperSize,
+    bankType,
+    time
+  };
+}
 
 export async function extractDataWithRealOCR(imageUrl: string, bankType: BankType, paperSize: '58mm' | '80mm' = '80mm'): Promise<TransferData> {
   console.log('🔍 REAL OCR STARTED for', bankType);
@@ -1682,10 +1930,6 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
 
     let extractedData: TransferData;
 
-    // VALIDASI KHUSUS BRI DIHAPUS ATAS PERMINTAAN USER (09/12/2025)
-    // Alasan: Khawatir memperlambat proses OCR dan kurang akurat.
-    // User akan disosialisasikan manual.
-
     // Route ke parser yang sesuai
     switch (bankType) {
       case 'BCA':
@@ -1703,6 +1947,14 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
       case 'BNI':
         console.log('🟠 Parsing as BNI receipt...');
         extractedData = parseBNIReceipt(text, bankType, paperSize);
+        break;
+      case 'BSI':
+        console.log('🕌 Parsing as BSI receipt...');
+        extractedData = parseBSIReceipt(text, bankType, paperSize);
+        break;
+      case 'FLIP':
+        console.log('🐬 Parsing as FLIP receipt...');
+        extractedData = parseFlipReceipt(text, bankType, paperSize);
         break;
       case 'SEABANK':
         console.log('🌊 Parsing as Seabank receipt...');
@@ -1837,11 +2089,6 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
               }
             } else {
               // 2. Fallback: cari di semua baris OCR area label BANK BRI
-              // NOTE: allOcrLines is not defined in this scope in original code either? 
-              // Wait, checking original code... it used allOcrLines. 
-              // But allOcrLines is NOT defined in extractDataWithRealOCR!
-              // It seems the original code was indeed broken or I missed a variable definition.
-              // Assuming text.split('\n') is what was meant.
               const allOcrLines = text.split('\n');
               const bankBriLine = allOcrLines.find(line => /BANK BRI[:：]/i.test(line));
               if (bankBriLine) {
@@ -1856,8 +2103,6 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
             }
           }
 
-          // --- CLEANUP: Patch cropping/threshold masking BANK BRI dinonaktifkan untuk efisiensi ---
-          // Untuk struk SeaBank ke bank lain (selain DANA), masking otomatis hanya ***********, user input manual 4 digit akhir rekening.
         } catch (err) {
           console.warn('⚠️ [DANA][CROP] Crop/OCR area masking gagal:', err);
           // Fallback: Coba parsing masking DANA langsung dari RAW OCR TEXT jika cropping gagal
@@ -1900,10 +2145,12 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
           extractedData.receiverBank = 'DANA';
         }
         break;
+
       case 'DANA':
         console.log('💙 Parsing as DANA receipt...');
         extractedData = parseDanaReceipt(text, bankType, paperSize);
         break;
+
       default:
         console.log('🔄 Parsing as generic receipt...');
         extractedData = parseGenericReceipt(text, bankType, paperSize);
@@ -1933,6 +2180,7 @@ export async function extractDataWithRealOCR(imageUrl: string, bankType: BankTyp
     return getDefaultData(bankType, paperSize);
   }
 }
+
 
 
 

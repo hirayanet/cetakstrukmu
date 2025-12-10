@@ -1,4 +1,4 @@
-export type BankType = 'BCA' | 'BRI' | 'MANDIRI' | 'BNI' | 'SEABANK' | 'DANA';
+export type BankType = 'BCA' | 'BRI' | 'MANDIRI' | 'BNI' | 'SEABANK' | 'DANA' | 'BSI' | 'FLIP';
 
 export interface TransferData {
   date: string;
