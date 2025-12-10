@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calculator, CheckCircle, LogOut, Home } from 'lucide-react';
+import { Printer, CheckCircle, LogOut, Home } from 'lucide-react';
 import ImageUploader from './components/ImageUploader';
 import TransferForm from './components/TransferForm';
 import ReceiptPreview from './components/ReceiptPreview';
@@ -10,7 +10,10 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { TransferData, BankType } from './types/TransferData';
 import { extractDataFromImage } from './utils/ocrSimulator';
 import { saveAuthData, loadAuthData, clearAuthData, saveAppState, loadAppState, clearAppState, UserSettings, saveUserSettings, loadUserSettings } from './utils/auth';
-import { Settings, X, Save } from 'lucide-react';
+import { Settings, X, Save, BarChart } from 'lucide-react';
+import OnlineIndicator from './components/OnlineIndicator';
+import ReportDashboard from './components/ReportDashboard';
+import { logVisitor, incrementStat } from './utils/firebase';
 
 function App() {
   // Authentication state
@@ -54,6 +57,9 @@ function App() {
   const [showSaveMappingModal, setShowSaveMappingModal] = useState(false);
   const [pendingTransferData, setPendingTransferData] = useState<TransferData | null>(null);
 
+  // Report Modal State
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
   // Load authentication state and app state from localStorage on app start
   useEffect(() => {
     const authData = loadAuthData();
@@ -77,6 +83,9 @@ function App() {
       }
     }
     setIsInitializing(false);
+
+    // Log visitor once per session
+    logVisitor();
   }, []);
 
   // Save app state whenever it changes (only if authenticated)
@@ -227,6 +236,9 @@ function App() {
 
       console.log('✅ Data extracted:', extractedData);
       setTransferData(extractedData);
+
+      // Track generated receipt
+      incrementStat('generated');
 
       await new Promise(resolve => setTimeout(resolve, 800));
       setStep('form');
@@ -391,7 +403,7 @@ function App() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Calculator className="w-6 h-6 text-white" />
+                <Printer className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">CetakStrukMu</h1>
@@ -399,6 +411,9 @@ function App() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Online Indicator (Admin Only) */}
+              {currentUser === 'admin' && <OnlineIndicator />}
+
               {/* User info and actions */}
               <div className="flex items-center space-x-2 md:space-x-3">
                 <span className="text-sm text-gray-600 hidden md:inline">Halo, <strong>{currentUser}</strong></span>
@@ -411,6 +426,18 @@ function App() {
                   <Settings className="w-5 h-5 md:w-4 md:h-4" />
                   <span className="hidden md:inline">Setting</span>
                 </button>
+
+                {/* Report Button (Admin Only) */}
+                {currentUser === 'admin' && (
+                  <button
+                    onClick={() => setIsReportOpen(true)}
+                    className="flex items-center space-x-1 px-2 py-1 md:px-3 md:py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Laporan Aktivitas"
+                  >
+                    <BarChart className="w-5 h-5 md:w-4 md:h-4" />
+                    <span className="hidden md:inline">Report</span>
+                  </button>
+                )}
 
                 {step !== 'bank-select' && (
                   <button
@@ -434,10 +461,10 @@ function App() {
             </div>
           </div>
         </div>
-      </header>
+      </header >
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      < main className="max-w-4xl mx-auto px-4 py-8" >
         {step === 'bank-select' && (
           <div className="space-y-6">
             <div className="text-center">
@@ -467,231 +494,240 @@ function App() {
               ))}
             </div>
           </div>
-        )}
+        )
+        }
 
-        {step === 'upload' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Resi {selectedBank}</h2>
-                <p className="text-gray-600">Upload foto struk transfer dari {selectedBank}</p>
+        {
+          step === 'upload' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Resi {selectedBank}</h2>
+                  <p className="text-gray-600">Upload foto struk transfer dari {selectedBank}</p>
+                </div>
+                <button
+                  onClick={handleBack}
+                  className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
+                  disabled={isExtracting}
+                >
+                  ← Ganti Bank
+                </button>
               </div>
-              <button
-                onClick={handleBack}
-                className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
-                disabled={isExtracting}
-              >
-                ← Ganti Bank
-              </button>
-            </div>
 
-            {/* Show progress indicator when extracting */}
-            {isExtracting ? (
-              <div className="bg-white rounded-2xl shadow-lg p-8">
-                <div className="text-center mb-6">
-                  {/* Progress Icon */}
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {extractionProgress.stage === 'complete' ? (
-                      <CheckCircle className="w-8 h-8 text-green-600" />
-                    ) : extractionProgress.stage === 'error' ? (
-                      <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">!</span>
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    )}
-                  </div>
-
-                  {/* Progress Title */}
-                  <h3 className="text-lg font-semibold mb-2">
-                    {extractionProgress.stage === 'complete' ? 'Selesai!' :
-                      extractionProgress.stage === 'error' ? 'Terjadi Kesalahan' :
-                        'Memproses Gambar...'}
-                  </h3>
-
-                  {/* Progress Message */}
-                  <p className="text-gray-600 text-sm mb-4">{extractionProgress.message}</p>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="mb-6">
-                  <div className="flex justify-between text-xs text-gray-500 mb-2">
-                    <span>Progress</span>
-                    <span>{extractionProgress.percentage}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${extractionProgress.stage === 'error' ? 'bg-red-500' :
-                        extractionProgress.stage === 'complete' ? 'bg-green-500' : 'bg-blue-600'
-                        }`}
-                      style={{ width: `${extractionProgress.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Progress Steps */}
-                <div className="grid grid-cols-5 gap-2 text-xs">
-                  {[
-                    { key: 'upload', icon: '📤', label: 'Upload' },
-                    { key: 'init', icon: '🔧', label: 'Persiapan' },
-                    { key: 'processing', icon: '📖', label: 'Baca Teks' },
-                    { key: 'parsing', icon: '🏦', label: 'Analisa' },
-                    { key: 'complete', icon: '✅', label: 'Selesai' }
-                  ].map((stepItem, index) => (
-                    <div key={stepItem.key} className="text-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${extractionProgress.percentage > (index * 20) ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
-                        }`}>
-                        <span className="text-sm">{stepItem.icon}</span>
-                      </div>
-                      <span className={`${extractionProgress.percentage > (index * 20) ? 'text-blue-600' : 'text-gray-400'
-                        }`}>
-                        {stepItem.label}
-                      </span>
+              {/* Show progress indicator when extracting */}
+              {isExtracting ? (
+                <div className="bg-white rounded-2xl shadow-lg p-8">
+                  <div className="text-center mb-6">
+                    {/* Progress Icon */}
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      {extractionProgress.stage === 'complete' ? (
+                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      ) : extractionProgress.stage === 'error' ? (
+                        <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm">!</span>
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      )}
                     </div>
-                  ))}
-                </div>
 
-                {/* Error retry button */}
-                {extractionProgress.stage === 'error' && (
-                  <div className="mt-6 text-center">
-                    <button
-                      onClick={() => {
-                        setIsExtracting(false);
-                        setExtractionProgress({ stage: '', message: '', percentage: 0 });
-                      }}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Coba Lagi
-                    </button>
+                    {/* Progress Title */}
+                    <h3 className="text-lg font-semibold mb-2">
+                      {extractionProgress.stage === 'complete' ? 'Selesai!' :
+                        extractionProgress.stage === 'error' ? 'Terjadi Kesalahan' :
+                          'Memproses Gambar...'}
+                    </h3>
+
+                    {/* Progress Message */}
+                    <p className="text-gray-600 text-sm mb-4">{extractionProgress.message}</p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <ImageUploader onImageUpload={handleImageUpload} selectedBank={selectedBank} />
-            )}
-          </div>
-        )}
 
-        {step === 'form' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Periksa Data Transfer</h2>
-                <p className="text-gray-600">Cek dan ubah data yang sudah dibaca dari foto</p>
-              </div>
-              <button
-                onClick={handleBack}
-                className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
-              >
-                ← Kembali
-              </button>
+                  {/* Progress Bar */}
+                  <div className="mb-6">
+                    <div className="flex justify-between text-xs text-gray-500 mb-2">
+                      <span>Progress</span>
+                      <span>{extractionProgress.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${extractionProgress.stage === 'error' ? 'bg-red-500' :
+                          extractionProgress.stage === 'complete' ? 'bg-green-500' : 'bg-blue-600'
+                          }`}
+                        style={{ width: `${extractionProgress.percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Progress Steps */}
+                  <div className="grid grid-cols-5 gap-2 text-xs">
+                    {[
+                      { key: 'upload', icon: '📤', label: 'Upload' },
+                      { key: 'init', icon: '🔧', label: 'Persiapan' },
+                      { key: 'processing', icon: '📖', label: 'Baca Teks' },
+                      { key: 'parsing', icon: '🏦', label: 'Analisa' },
+                      { key: 'complete', icon: '✅', label: 'Selesai' }
+                    ].map((stepItem, index) => (
+                      <div key={stepItem.key} className="text-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1 ${extractionProgress.percentage > (index * 20) ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
+                          }`}>
+                          <span className="text-sm">{stepItem.icon}</span>
+                        </div>
+                        <span className={`${extractionProgress.percentage > (index * 20) ? 'text-blue-600' : 'text-gray-400'
+                          }`}>
+                          {stepItem.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Error retry button */}
+                  {extractionProgress.stage === 'error' && (
+                    <div className="mt-6 text-center">
+                      <button
+                        onClick={() => {
+                          setIsExtracting(false);
+                          setExtractionProgress({ stage: '', message: '', percentage: 0 });
+                        }}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Coba Lagi
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <ImageUploader onImageUpload={handleImageUpload} selectedBank={selectedBank} />
+              )}
             </div>
-            <TransferForm
-              initialData={transferData}
-              uploadedImage={uploadedImage}
-              onSubmit={handleFormSubmit}
-            />
-          </div>
-        )}
+          )
+        }
 
-        {step === 'preview' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Lihat & Cetak</h2>
-                <p className="text-gray-600">Siap dicetak atau disimpan sebagai PDF</p>
-              </div>
-              <div className="flex space-x-3">
+        {
+          step === 'form' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Periksa Data Transfer</h2>
+                  <p className="text-gray-600">Cek dan ubah data yang sudah dibaca dari foto</p>
+                </div>
                 <button
                   onClick={handleBack}
                   className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  ← Edit Data
+                  ← Kembali
                 </button>
               </div>
+              <TransferForm
+                initialData={transferData}
+                uploadedImage={uploadedImage}
+                onSubmit={handleFormSubmit}
+              />
             </div>
-            <ReceiptPreview transferData={transferData} shopSettings={shopSettings} />
-          </div>
-        )}
-      </main>
+          )
+        }
+
+        {
+          step === 'preview' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Lihat & Cetak</h2>
+                  <p className="text-gray-600">Siap dicetak atau disimpan sebagai PDF</p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleBack}
+                    className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    ← Edit Data
+                  </button>
+                </div>
+              </div>
+              <ReceiptPreview transferData={transferData} shopSettings={shopSettings} />
+            </div>
+          )
+        }
+      </main >
 
       {/* Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-bold text-gray-900">Pengaturan Toko</h3>
-              <button
-                onClick={() => setIsSettingsOpen(false)}
-                className="text-gray-400 hover:text-gray-500 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSettings} className="p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nama Toko (Header)
-                </label>
-                <input
-                  type="text"
-                  value={shopSettings.shopName}
-                  onChange={(e) => setShopSettings(prev => ({ ...prev, shopName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Contoh: CetakStrukMu"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sub-judul
-                </label>
-                <input
-                  type="text"
-                  value={shopSettings.shopSubtitle}
-                  onChange={(e) => setShopSettings(prev => ({ ...prev, shopSubtitle: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Contoh: Kirim Uang & Pembayaran"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Footer Struk
-                </label>
-                <input
-                  type="text"
-                  value={shopSettings.shopFooter}
-                  onChange={(e) => setShopSettings(prev => ({ ...prev, shopFooter: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Contoh: Terima kasih..."
-                  required
-                />
-              </div>
-
-              <div className="pt-4 flex justify-end space-x-3">
+      {
+        isSettingsOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">Pengaturan Toko</h3>
                 <button
-                  type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="text-gray-400 hover:text-gray-500 transition-colors"
                 >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Simpan
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveSettings} className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nama Toko (Header)
+                  </label>
+                  <input
+                    type="text"
+                    value={shopSettings.shopName}
+                    onChange={(e) => setShopSettings(prev => ({ ...prev, shopName: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: CetakStrukMu"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sub-judul
+                  </label>
+                  <input
+                    type="text"
+                    value={shopSettings.shopSubtitle}
+                    onChange={(e) => setShopSettings(prev => ({ ...prev, shopSubtitle: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: Kirim Uang & Pembayaran"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Footer Struk
+                  </label>
+                  <input
+                    type="text"
+                    value={shopSettings.shopFooter}
+                    onChange={(e) => setShopSettings(prev => ({ ...prev, shopFooter: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Contoh: Terima kasih..."
+                    required
+                  />
+                </div>
+
+                <div className="pt-4 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Simpan
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <SaveMappingModal
         isOpen={showSaveMappingModal}
@@ -720,7 +756,9 @@ function App() {
 
       {/* PWA Install Prompt */}
       <PWAInstallPrompt />
-    </div>
+      {/* Report Dashboard Modal */}
+      {isReportOpen && <ReportDashboard onClose={() => setIsReportOpen(false)} />}
+    </div >
   );
 }
 

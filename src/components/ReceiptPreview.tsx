@@ -6,6 +6,7 @@ import { autoSaveAccountMapping } from '../utils/realOCR';
 import { UserSettings } from '../utils/auth';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { incrementStat } from '../utils/firebase';
 
 interface ReceiptPreviewProps {
   transferData: TransferData;
@@ -81,6 +82,9 @@ export default function ReceiptPreview({ transferData, shopSettings }: ReceiptPr
         }
       }
 
+      // Track print action
+      incrementStat('printed');
+
       // Add print class berdasarkan paper size
       document.body.classList.add('printing');
       if (transferData.paperSize === '58mm') {
@@ -115,6 +119,9 @@ export default function ReceiptPreview({ transferData, shopSettings }: ReceiptPr
           showAutoSaveNotification(transferData.receiverName, transferData.receiverAccount);
         }
       }
+
+      // Track PDF download action
+      incrementStat('pdf');
 
       // const html2canvas = (await import('html2canvas')).default; // REMOVED
       // const jsPDF = (await import('jspdf')).default; // REMOVED
@@ -174,6 +181,9 @@ export default function ReceiptPreview({ transferData, shopSettings }: ReceiptPr
           showAutoSaveNotification(transferData.receiverName, transferData.receiverAccount);
         }
       }
+
+      // Track WhatsApp share action
+      incrementStat('whatsapp');
 
       console.log('🚀 Starting WhatsApp share process...');
 
