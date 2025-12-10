@@ -24,7 +24,7 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
     { value: 5000, label: 'Rp 5.000' },
     { value: 10000, label: 'Rp 10.000' },
     { value: 15000, label: 'Rp 15.000' },
-    { value: 20000, label: 'Rp 20.000' },
+
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -57,7 +57,8 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
   }, [initialData.receiverAccount]);
 
   useEffect(() => {
-    setFormData({ ...initialData,
+    setFormData({
+      ...initialData,
       receiverAccount: initialData.receiverAccount || '',
       senderName: initialData.bankType === 'BCA' ? 'GANI MUHAMMAD RMADLAN' : initialData.senderName
     });
@@ -142,7 +143,7 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
                     newAccount = mappings[newName];
                     notice = `Nomor rekening otomatis diisi dari mapping: ${newAccount}`;
                   }
-                } catch {}
+                } catch { }
                 setFormData({ ...formData, receiverName: newName, receiverAccount: newAccount });
                 setMappingNotice(notice);
               }}
@@ -208,24 +209,39 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
             />
           </div>
 
-    
+
 
           <div>
             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
               <Calculator className="w-4 h-4 mr-2" />
               Biaya Admin
             </label>
-            <select
-              value={formData.adminFee}
-              onChange={(e) => setFormData({ ...formData, adminFee: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
+            <div className="relative mb-2">
+              <span className="absolute left-4 top-3 text-gray-500">Rp</span>
+              <input
+                type="number"
+                value={formData.adminFee}
+                onChange={(e) => setFormData({ ...formData, adminFee: parseInt(e.target.value) || 0 })}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="0"
+                onFocus={(e) => e.target.select()}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
               {adminFeeOptions.map(option => (
-                <option key={option.value} value={option.value}>
+                <button
+                  type="button"
+                  key={option.value}
+                  onClick={() => setFormData({ ...formData, adminFee: option.value })}
+                  className={`px-3 py-1 text-xs md:text-sm rounded-full border transition-colors ${formData.adminFee === option.value
+                    ? 'bg-blue-100 border-blue-500 text-blue-700 font-medium'
+                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                >
                   {option.label}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>
@@ -288,18 +304,18 @@ export default function TransferForm({ initialData, uploadedImage, onSubmit }: T
       {uploadedImage && (
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">📄 Resi {formData.bankType}</h3>
-          
+
           <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200">
             <div className="flex items-center space-x-2 mb-2">
               <span className="text-2xl">✅</span>
               <span className="font-semibold">Bank: {formData.bankType}</span>
             </div>
-            
+
             <p className="text-sm text-gray-600">
               Data berhasil diekstrak dari resi {formData.bankType}
             </p>
           </div>
-          
+
           <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
             <img
               src={uploadedImage}
