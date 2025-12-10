@@ -1304,6 +1304,7 @@ function getDefaultData(bankType: BankType, paperSize: '58mm' | '80mm' = '80mm')
 }
 
 // Image preprocessing untuk meningkatkan akurasi OCR
+// Image preprocessing untuk meningkatkan akurasi OCR
 function preprocessImage(imageUrl: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -1313,11 +1314,17 @@ function preprocessImage(imageUrl: string): Promise<string> {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
 
-      canvas.width = img.width;
-      canvas.height = img.height;
+      // Add padding (50px) to help OCR read edge characters
+      const padding = 50;
+      canvas.width = img.width + (padding * 2);
+      canvas.height = img.height + (padding * 2);
 
-      // Draw original image
-      ctx.drawImage(img, 0, 0);
+      // Fill with white background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw original image in center
+      ctx.drawImage(img, padding, padding);
 
       // Get image data for processing
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -1326,9 +1333,20 @@ function preprocessImage(imageUrl: string): Promise<string> {
       // 1. Convert to grayscale + increase contrast
       for (let i = 0; i < data.length; i += 4) {
         const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        // Increase contrast (1.5x)
-        const enhanced = Math.min(255, gray * 1.5);
-        data[i] = data[i + 1] = data[i + 2] = enhanced;
+
+        // Simple binarization (thresholding) helps Tesseract
+        // If darker than 180, make it black (text). Else white (background).
+        // This is more aggressive than just contrast, good for clear receipts.
+        // But let's stick to high contrast to avoid losing faint details.
+
+        // Increase contrast (2.0x) - More aggressive than before (1.5x)
+        const factor = 2.0; // Contrast factor
+        const contrast = (gray - 128) * factor + 128;
+
+        // Clamp value
+        const final = Math.max(0, Math.min(255, contrast));
+
+        data[i] = data[i + 1] = data[i + 2] = final;
       }
 
       // Put processed data back
