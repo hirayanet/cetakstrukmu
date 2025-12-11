@@ -112,10 +112,10 @@ export default function ReportDashboard({ onClose }: ReportDashboardProps) {
                                         <span className="flex items-center text-gray-600"><Printer className="w-4 h-4 mr-2" /> Cetak Thermal</span>
                                         <span className="font-bold">{stats.total_printed}</span>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                         <div
                                             className="bg-purple-500 h-2 rounded-full"
-                                            style={{ width: `${(stats.total_printed / (stats.total_generated || 1)) * 100}%` }}
+                                            style={{ width: `${stats.total_printed + stats.total_pdf + stats.total_whatsapp > 0 ? (stats.total_printed / (stats.total_printed + stats.total_pdf + stats.total_whatsapp)) * 100 : 0}%` }}
                                         ></div>
                                     </div>
                                 </div>
@@ -125,10 +125,10 @@ export default function ReportDashboard({ onClose }: ReportDashboardProps) {
                                         <span className="flex items-center text-gray-600"><Download className="w-4 h-4 mr-2" /> Simpan PDF</span>
                                         <span className="font-bold">{stats.total_pdf}</span>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                         <div
                                             className="bg-green-500 h-2 rounded-full"
-                                            style={{ width: `${(stats.total_pdf / (stats.total_generated || 1)) * 100}%` }}
+                                            style={{ width: `${stats.total_printed + stats.total_pdf + stats.total_whatsapp > 0 ? (stats.total_pdf / (stats.total_printed + stats.total_pdf + stats.total_whatsapp)) * 100 : 0}%` }}
                                         ></div>
                                     </div>
                                 </div>
@@ -138,10 +138,10 @@ export default function ReportDashboard({ onClose }: ReportDashboardProps) {
                                         <span className="flex items-center text-gray-600"><Share2 className="w-4 h-4 mr-2" /> WhatsApp</span>
                                         <span className="font-bold">{stats.total_whatsapp}</span>
                                     </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-2">
+                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                                         <div
                                             className="bg-orange-500 h-2 rounded-full"
-                                            style={{ width: `${(stats.total_whatsapp / (stats.total_generated || 1)) * 100}%` }}
+                                            style={{ width: `${stats.total_printed + stats.total_pdf + stats.total_whatsapp > 0 ? (stats.total_whatsapp / (stats.total_printed + stats.total_pdf + stats.total_whatsapp)) * 100 : 0}%` }}
                                         ></div>
                                     </div>
                                 </div>
